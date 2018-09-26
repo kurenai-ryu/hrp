@@ -127,12 +127,89 @@ local tMessageType = {
     [4] = "Reader application",
     [5] = "Testing command"
 }
+local tMessagesIds = {
+  [1]={
+    [0x00] = "Query reader information",
+    [0x01] = "Query baseband software version",
+    [0x02] = "Configure RS232 parameter",
+    [0x03] = "Query RS232 parameter",
+    [0x04] = "Configure reader IP",
+    [0x05] = "Query reader IP",
+    [0x06] = "Query reader MAC",
+    [0x07] = "Configure server/client mode parameter",
+    [0x08] = "Query ser ver/client mode parameter",
+    [0x09] = "Configure GPO status",
+    [0x0A] = "Query GPI status",
+    [0x0B] = "Configure GPI trigger parameter",
+    [0x0C] = "Query GPI trigger parameter",
+    [0x0D] = "Configure wiegand communication parameter",
+    [0x0E] = "Query wiegand communication parameter",
+    [0x0F] = "Re-start reader",
+    [0x10] = "Configure reader system time",
+    [0x11] = "Query reader system time",
+    [0x12] = "Connection status confirmation",
+    [0x13] = "Configure reader MAC",
+    [0x14] = "Restore reader default configuration",
+    [0x15] = "Configure reader RS485 device address",
+    [0x16] = "Query reader RS485 device address",
+  },
+  [2]={
+    [0x00] = "Query reader RFID ability",
+    [0x01] = "Configure reader power",
+    [0x02] = "Query reader power",
+    [0x03] = "Configure reader RF frequency band",
+    [0x04] = "Query reader RF frequency band",
+    [0x05] = "Configure reader working frequency",
+    [0x06] = "Query reader working frequency",
+    [0x07] = "Configure reader antenna",
+    [0x08] = "Query reader antenna",
+    [0x09] = "Configure tag upload parameters",
+    [0x0A] = "Query tag upload parameters",
+    [0x0B] = "Configure EPC baseband parameters",
+    [0x0C] = "Query EPC baseband parameters",
+    [0x0D] = "Configure reader auto-idle mode",
+    [0x0E] = "Query reader auto-idle mode",
+    [0x0F] = "Reserved NA",
+    [0x10] = "Read EPC tag",
+    [0x11] = "Write EPC tag",
+    [0x12] = "Lock tag",
+    [0x13] = "Kill tag",
+    [0x40] = "read 6B tag",
+    [0x41] = "Write 6B tag",
+    [0x42] = "Lock 6B tag",
+    [0x43] = "Query 6B tag locking",
+    [0xFF] = "Stop command",
+  },
+  [4]={
+    [0x00] = "Device application software upgrade",
+    [0x01] = "Baseband software upgrade",
+  },
+  [5]={
+    [0x00] = "Transmitting carrier command",
+    [0x05] = "Antenna port SWR detection",
+  },
+}
+
+local tParams = {
+  [0x02] = {
+    [0x0b] = {
+      {0x01, "EPC baseband speed", 1, {[0]="Tari=25us, FM0, LHF=40khz",[255] = "Auto"}},
+      {0x02, "default Q value", 1, {} },
+      {0x03, "Session", 1, {} },
+      {0x04, "inventory Flag", 1, {[0]="use flag A", [1]="use flag B", [2]="Use both A & B"}}
+    },
+  },
+}
 
 local pf_fh = ProtoField.new ("Frame Head", "clou.fh", ftypes.UINT8, tFrameHead)
 local pf_rs485f = ProtoField.new ("RS485 Flag", "clou.rs485f", ftypes.UINT8, tRS485Flag,nil, 0x20)
 local pf_af = ProtoField.new ("Active Flag", "clou.af", ftypes.UINT8, tActiveFlag, nil, 0x10)
 local pf_mt = ProtoField.new ("Message Type", "clou.mt", ftypes.UINT8, tMessageType,nil, 0x0F)
 local pf_mid = ProtoField.new ("Message ID", "clou.mid", ftypes.UINT8, nil, base.HEX)
+local pf_mid_1 = ProtoField.new ("Message ID", "clou.mid", ftypes.UINT8, tMessagesIds[1], base.HEX)
+local pf_mid_2 = ProtoField.new ("Message ID", "clou.mid", ftypes.UINT8, tMessagesIds[2], base.HEX)
+local pf_mid_4 = ProtoField.new ("Message ID", "clou.mid", ftypes.UINT8, tMessagesIds[4], base.HEX)
+local pf_mid_5 = ProtoField.new ("Message ID", "clou.mid", ftypes.UINT8, tMessagesIds[5], base.HEX)
 local pf_sadr = ProtoField.new ("Serial address", "clou.sadr", ftypes.UINT8, nil, base.HEX)
 local pf_dlength  = ProtoField.new ("Data length", "clou.dlength", ftypes.UINT16)
 local pf_data     = ProtoField.new ("Data", "clou.data", ftypes.BYTES, nil, base.DOT)
@@ -140,7 +217,7 @@ local pf_checksum = ProtoField.new ("Checksum", "clou.checksum", ftypes.UINT16, 
 
 
 clou.fields = {
-  pf_fh, pf_rs485f, pf_af, pf_mt, pf_mid, pf_sadr, pf_dlength, pf_data, pf_checksum
+  pf_fh, pf_rs485f, pf_af, pf_mt, pf_mid, pf_mid_1, pf_mid_2, pf_mid_4, pf_mid_5, pf_sadr, pf_dlength, pf_data, pf_checksum
 }
 
 -- here's a little helper function to access the response_field value later.
@@ -256,7 +333,16 @@ function clou.dissector(tvbuf, pktinfo, root)
     local rs485 = bit32.band(tvbuf:range(1,1):uint(), 0x20)
     tree:add(pf_af, tvbuf:range(1,1))
     tree:add(pf_mt, tvbuf:range(1,1))
-    tree:add(pf_mid, tvbuf:range(2,1))
+    local mt = bit32.band(tvbuf:range(1,1):uint(), 0x0F)
+    if mt == 1 then
+      tree:add(pf_mid_1, tvbuf:range(2,1))
+    elseif mt == 2 then
+      tree:add(pf_mid_2, tvbuf:range(2,1))
+    else
+      tree:add(pf_mid, tvbuf:range(2,1))
+    end
+
+    local mid = tvbuf:range(2,1):uint()
     local data = 3
     if rs485 > 0 then
       tree:add(pf_sadr, tvbuf:range(3,1))
@@ -265,8 +351,47 @@ function clou.dissector(tvbuf, pktinfo, root)
     tree:add(pf_dlength, tvbuf:range(data, 2))
     local data_length = tvbuf:range(data,2):uint()
     data = data + 2
-    if data_length > 0 then
-      tree:add(pf_data, tvbuf:range(data,data_length)) --_le
+    data_tree = tree:add(pf_data, tvbuf:range(data,data_length))
+    if tParams[mt] ~= nil and tParams[mt][mid] ~= nil then
+      local params = tParams[mt][mid]
+      local ptr = data
+      local pid
+      local val
+      local found = false
+      -- analise Mandatory
+      for k, v in ipairs(params) do
+        if v[1] == 0 then
+            val = tvbuf:range(ptr,v[3]):uint()
+            ptr = ptr + v[3]
+            if v[4][val] ~= nil then
+              data_tree:append_text("\n\t" .. v[2] .. " -> " .. v[4][val])
+            else
+              data_tree:append_text("\n\t" .. v[2] .. " = " .. val)
+            end
+        end
+      end
+      -- analise pids
+      while ptr < (data + data_length) do
+        pid = tvbuf:range(ptr,1):uint()
+        ptr = ptr + 1
+        found = false
+        for k, v in ipairs(params) do
+          if v[1] == pid then
+            val = tvbuf:range(ptr,v[3]):uint()
+            ptr = ptr + v[3]
+            if v[4][val] ~= nil then
+              data_tree:append_text("\n\t" .. v[2] .. " -> " .. v[4][val])
+            else
+              data_tree:append_text("\n\t" .. v[2] .. " = " .. val)
+            end
+            found = true
+            break
+          end
+        end
+        if not found then
+          data_tree:append_text("\n\t*pid not found: " .. pid)
+        end
+      end
     end
     tree:add(pf_checksum, tvbuf:range(data + data_length, 2))
     --- analize data here!
