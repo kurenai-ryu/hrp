@@ -16,6 +16,10 @@ local debug_level = {
     LEVEL_1  = 1,
     LEVEL_2  = 2
 }
+
+OUT = 0
+IN = 1
+
 -- set this DEBUG to debug_level.LEVEL_1 to enable printing debug_level info
 -- set it to debug_level.LEVEL_2 to enable really verbose printing
 -- note: this will be overridden by user's preference settings
@@ -63,7 +67,9 @@ assert(ProtoExpert.new, "Wireshark does not have the ProtoExpert class, so it's 
 ----------------------------------------
 -- creates a Proto object, but doesn't register it yet
 local clou_udp = Proto("clou_udp","Clou UDP Protocol")
-local clou = Proto("clou","Clou TCP Protocol")
+local clou = Proto("clou","Clou/Hopeland HRP Protocol")
+
+local tcp_port_f = Field.new("tcp.dstport")
 
 -- from CLreader-api.h
 local eBAUD = {
@@ -190,17 +196,6 @@ local tMessagesIds = {
   },
 }
 
-local tParams = {
-  [0x02] = {
-    [0x0b] = {
-      {0x01, "EPC baseband speed", 1, {[0]="Tari=25us, FM0, LHF=40khz",[255] = "Auto"}},
-      {0x02, "default Q value", 1, {} },
-      {0x03, "Session", 1, {} },
-      {0x04, "inventory Flag", 1, {[0]="use flag A", [1]="use flag B", [2]="Use both A & B"}}
-    },
-  },
-}
-
 local pf_fh = ProtoField.new ("Frame Head", "clou.fh", ftypes.UINT8, tFrameHead)
 local pf_rs485f = ProtoField.new ("RS485 Flag", "clou.rs485f", ftypes.UINT8, tRS485Flag,nil, 0x20)
 local pf_af = ProtoField.new ("Active Flag", "clou.af", ftypes.UINT8, tActiveFlag, nil, 0x10)
@@ -214,11 +209,231 @@ local pf_sadr = ProtoField.new ("Serial address", "clou.sadr", ftypes.UINT8, nil
 local pf_dlength  = ProtoField.new ("Data length", "clou.dlength", ftypes.UINT16)
 local pf_data     = ProtoField.new ("Data", "clou.data", ftypes.BYTES, nil, base.DOT)
 local pf_checksum = ProtoField.new ("Checksum", "clou.checksum", ftypes.UINT16, nil, base.HEX)
-
+local pf_string   = ProtoField.new ("Data", "clou.string", ftypes.STRING)
 
 clou.fields = {
-  pf_fh, pf_rs485f, pf_af, pf_mt, pf_mid, pf_mid_1, pf_mid_2, pf_mid_4, pf_mid_5, pf_sadr, pf_dlength, pf_data, pf_checksum
+  pf_fh,
+  pf_rs485f, pf_af, pf_mt,
+  pf_mid, pf_mid_1, pf_mid_2, pf_mid_4, pf_mid_5, pf_string,
+  pf_sadr,
+  pf_dlength, pf_data,
+  pf_checksum
 }
+
+function gen_none()
+  return {0, function(dt, tb, ptr)
+    dt:add(pf_string, tb:range(ptr,0),"", "-")
+    return ptr
+  end}
+end
+
+function gen_strX(pid, name, size)
+  size = size or 1
+  if pid > 0 then inco = 1 else inco = 0 end
+  return {pid, function(dt, tb, ptr)
+    local val = tostring(tb:range(ptr, size):bytes())
+    dt:add(pf_string, tb:range(ptr - inco , size + inco),
+      val, string.format("%s -> %s", name, val))
+    return ptr + size
+  end}
+end
+
+function gen_uintX(pid, name, size)
+  size = size or 1
+  if pid > 0 then inco = 1 else inco = 0 end
+  return {pid, function(dt, tb, ptr)
+    local val = tb:range(ptr, size):uint()
+    dt:add(pf_string, tb:range(ptr - inco , size + inco),
+      val, string.format("%s = 0x%0"..(size*2).."X", name, val))
+    return ptr + size
+  end}
+end
+
+function gen_uint(pid, name, size)
+  size = size or 1
+  if pid > 0 then inco = 1 else inco = 0 end
+  return {pid, function(dt, tb, ptr)
+    local val = tb:range(ptr, size):uint()
+    dt:add(pf_string, tb:range(ptr - inco, size + inco),
+      val, string.format("%s = %u", name, val))
+    return ptr + size
+  end}
+end
+
+function gen_flt(pid, name, factor, size)
+  factor = factor or 1.0
+  size = size or 1
+  if pid > 0 then inco = 1 else inco = 0 end
+  return {pid, function(dt, tb, ptr)
+    local val = tb:range(ptr, size):uint()
+    dt:add(pf_string, tb:range(ptr - inco, size + inco),
+      val, string.format("%s = %.2f", name, (val * factor)))
+    return ptr + size
+  end}
+end
+
+function gen_table(pid, name, table, size)
+  size = size or 1
+  if pid > 0 then inco = 1 else inco = 0 end
+  return {pid, function(dt, tb, ptr)
+    local val = tb:range(ptr, size):uint()
+    if table[val] ~= nil then val = table[val] end
+    dt:add(pf_string, tb:range(ptr - inco, size + inco),
+      val, name .. " = " .. val)
+      return ptr + size
+  end}
+end
+
+function gen_bitmask(pid, name, table, size)
+  size = size or 1
+  if pid > 0 then inco = 1 else inco = 0 end
+  return {pid, function(dt, tb, ptr)
+    local val = tb:range(ptr, size):uint()
+    local con = "" -- TODO complete!
+    if table[val] ~= nil then val = table[val] end
+    dt:add(pf_string, tb:range(ptr - inco, size + inco),
+      val, name .. " = " .. val)
+      return ptr + size
+  end}
+end
+
+function gen_var2(pid, name)
+  if pid > 0 then inco = 1 else inco = 0 end
+  return {pid, function(dt, tb, ptr)
+    local size = tb:range(ptr,2):uint()
+    local val = tostring(tb:range(ptr + 2, size):bytes())
+    dt:add(pf_string, tb:range(ptr - inco, inco + 2 + size),
+      val, string.format("%s[%i] -> %s",name, size, val))
+    return ptr + 2 + size
+  end}
+end
+
+--read parameter
+function gen_var_read(pid, name)
+  if pid > 0 then inco = 1 else inco = 0 end
+  return {pid, function(dt, tb, ptr)
+    local tarea = {[0] = "Data Area", [1]= "EPC", [2]="TID", [3]="user"}
+    local area = tb:range(ptr, 1):uint()
+    local start= tb:range(ptr + 1, 2):uint()
+    local size = tb:range(ptr + 3, 1):uint()
+    local val = tostring(tb:range(ptr + 4, size):bytes())
+    dt:add(pf_string, tb:range(ptr - inco, inco + 4 + size),
+      val, string.format("%s[%s][%i] -> %s",name, tarea[area], start, val))
+    return ptr + 4 + size
+  end}
+end
+
+function gen_adr_read(pid, name)
+  if pid > 0 then inco = 1 else inco = 0 end
+  return {pid, function(dt, tb, ptr)
+    local size = 3 -- fixed
+    local start= tb:range(ptr, 2):uint()
+    local val = tb:range(ptr + 2, 1):uint()
+    dt:add(pf_string, tb:range(ptr - inco, inco + size),
+      val, string.format("%s = [%u][%u]",name, start, val))
+    return ptr + size
+  end}
+end
+
+local tParams = {
+  [OUT] = { -- from PC to reader
+    [0x02] = {
+      [0x0b] = {
+        gen_table(1, "EPC baseband speed",{
+          [0]="Tari=25us, FM0, LHF=40khz",
+          [1]="Tari=25us, Miller4, LHF=250khz",
+          [2]="Tari=25us, Miller4, LHF=300khz",
+          [3]="Tari=6.25us, FM0, LHF=400khz",
+          [255] = "Auto"}),
+        gen_uint (2, "Default Q Value"),
+        gen_uint (3, "Session"),
+        gen_table(4, "Inventory flag",{
+          [0]="use flag A",
+          [1]="use flag B",
+          [2]="Use both A & B"})
+      },
+      [0x10] = {
+        gen_bitmask (0, "Antenna", eANT),
+        gen_table   (0, "Inv/Sing Read Type", {[0]="Single Read", [1]="Continous"}),
+        gen_var_read(1, "Read Param"),
+        gen_uintX   (2, "Tid read", 2),
+        gen_adr_read(3, "UserData read"),
+        gen_adr_read(4, "ReservedData read"),
+        gen_uintX   (5, "Access password", 4),
+        gen_table   (6, "MONZA QT", {[1]="Read"}),
+        gen_table   (7, "RFMICRON temp", {[1]="Read"}),
+        gen_table   (8, "EM Sensor Data", {[1]="Read"}),
+        gen_adr_read(9, "EPC data"),
+      },
+      [0xFF] = {gen_none()},
+    },
+  },
+  [IN] = { -- reader data or reader response
+    [0x02] = {
+      [0x00] = { -- reader cuality? read tag!!!
+        gen_var2 ( 0,"EPC"),
+        gen_uintX( 0, "Tag PC Value", 2),
+        gen_uint ( 0, "Antenna ID"),
+        gen_uint ( 1, "RSSI"),
+        gen_table( 2, "Result",{
+          [0]="Successful",
+          [1]="No response",
+          [2]="CRC error",
+          [3]="Data area locked",
+          [4] ="Data area overflow",
+          [5]="Access password error",
+          [6]="Other tag error",
+          [7]="Other reader error"
+        }),
+        gen_var2 ( 3, "TID"),
+        gen_var2 ( 4, "UserData"),
+        gen_var2 ( 5, "ReservedData"),
+        gen_uint ( 6, "Sub antenna"),
+        { 7, function(dt, tvbuf, ptr)
+          local size = 8
+          local val1 = tvbuf:range(ptr, 4):uint()
+          local val2 = tvbuf:range(ptr + 4 , 4):uint()
+          dt:add(pf_string, tvbuf:range(ptr-1, size+1),
+            val, string.format("UTC =  %i.%06i ms", val1, val2))
+          ptr = ptr + size
+          return ptr
+        end},
+        gen_uintX( 8, "Sequence No", 4),
+        gen_uint ( 9, "Freq[kHz]", 4),
+        gen_flt  (10, "Phase[°]", 0.0490625),
+        gen_strX (11, "EM sensor data", 8),
+        gen_var2 (12, "EPC Data"),
+      },
+      [0x01] = { --finnish
+        gen_table( 0, "TagRead finish",{
+          [0]="single finished",
+          [1]="recieved stop command",
+          [2]="abnormal stop"}),
+      },
+      [0x0b] = {
+        gen_table( 0, "Config Result",{
+          [0] = "Configure successfully",
+          [1] = "Baseband speed reader don’t support.",
+          [2] = "Q value parameter error",
+          [3] = "Session parameter error",
+          [4] = "Inventory parameter error",
+          [5] = "Other parameter error",
+          [6] = "Save failed"}),
+      },
+      [0x10] = {
+        gen_table( 0, "Config Result",{
+          [0] = "Configure successfully",
+          [1] = "Antenna port parameter error",
+          [2] = "Select read parameter error",
+          [3] = "TID read parameter error",
+          [4] = "UserData read parameter error",
+          [5] = "Reserved area parameter error",
+          [6] = "other param error"}),
+      },
+    },
+  },
+}
+
 
 -- here's a little helper function to access the response_field value later.
 -- Like any Field retrieval, you can't retrieve a field's value until its value has been
@@ -291,17 +506,35 @@ dprint2("CLOU Prefs registered")
 ---- some constants for later use ----
 local ZK_PACKET_LEN = 7
 
+function data_tree_diss(data_tree, params, tvbuf,ptr,size,ptr2,size2)
+  local val
+  if size > 4 then
+    val = tostring(tvbuf:range(ptr, size):bytes())
+  else
+    val = tvbuf:range(ptr, size):uint()
+  end
+end
+
+
 ----------------------------------------
 -- The following creates the callback function for the dissector.
 -- It's the same as doing "dns.dissector = function (tvbuf,pkt,root)"
 -- The 'tvbuf' is a Tvb object, 'pktinfo' is a Pinfo object, and 'root' is a TreeItem object.
 -- Whenever Wireshark dissects a packet that our Proto is hooked into, it will call
 -- this function and pass it these arguments for the packet it's dissecting.
+
 function clou.dissector(tvbuf, pktinfo, root)
     dprint2("clou.dissector called")
-
     -- set the protocol column to show our protocol name
     pktinfo.cols.protocol:set("HRP")
+    local in_or_out
+    if tostring(tcp_port_f()) == tostring(default_settings.port) then
+      in_or_out = OUT
+      pktinfo.cols.info = "-> "
+    else
+      in_or_out = IN
+      pktinfo.cols.info = "<- "
+    end
 
     -- We want to check that the packet size is rational during dissection, so let's get the length of the
     -- packet buffer (Tvb).
@@ -334,15 +567,22 @@ function clou.dissector(tvbuf, pktinfo, root)
     tree:add(pf_af, tvbuf:range(1,1))
     tree:add(pf_mt, tvbuf:range(1,1))
     local mt = bit32.band(tvbuf:range(1,1):uint(), 0x0F)
+    local mid = tvbuf:range(2,1):uint()
     if mt == 1 then
       tree:add(pf_mid_1, tvbuf:range(2,1))
+      pktinfo.cols.info = tostring(pktinfo.cols.info) .. tMessagesIds[mt][mid]
     elseif mt == 2 then
       tree:add(pf_mid_2, tvbuf:range(2,1))
+      pktinfo.cols.info = tostring(pktinfo.cols.info) .. tMessagesIds[mt][mid]
+    elseif mt == 4 then
+      tree:add(pf_mid_4, tvbuf:range(2,1))
+      pktinfo.cols.info = tostring(pktinfo.cols.info) .. tMessagesIds[mt][mid]
+    elseif mt == 5 then
+      tree:add(pf_mid_5, tvbuf:range(2,1))
+      pktinfo.cols.info = tostring(pktinfo.cols.info) .. tMessagesIds[mt][mid]
     else
       tree:add(pf_mid, tvbuf:range(2,1))
     end
-
-    local mid = tvbuf:range(2,1):uint()
     local data = 3
     if rs485 > 0 then
       tree:add(pf_sadr, tvbuf:range(3,1))
@@ -350,26 +590,26 @@ function clou.dissector(tvbuf, pktinfo, root)
     end
     tree:add(pf_dlength, tvbuf:range(data, 2))
     local data_length = tvbuf:range(data,2):uint()
+
     data = data + 2
-    data_tree = tree:add(pf_data, tvbuf:range(data,data_length))
-    if tParams[mt] ~= nil and tParams[mt][mid] ~= nil then
-      local params = tParams[mt][mid]
+    if data_length > 0 then
+      data_tree = tree:add(pf_data, tvbuf:range(data,data_length))
+    else
+      tree:add(pf_data, tvbuf:range(data,data_length), "","--No data!")
+      data_tree = tree
+    end
+    if tParams[in_or_out] ~= nil and tParams[in_or_out][mt] ~= nil and tParams[in_or_out][mt][mid] ~= nil then
+      local params = tParams[in_or_out][mt][mid]
       local ptr = data
       local pid
       local val
-      local found = false
       -- analise Mandatory
       for k, v in ipairs(params) do
-        if v[1] == 0 then
-            val = tvbuf:range(ptr,v[3]):uint()
-            ptr = ptr + v[3]
-            if v[4][val] ~= nil then
-              data_tree:append_text("\n\t" .. v[2] .. " -> " .. v[4][val])
-            else
-              data_tree:append_text("\n\t" .. v[2] .. " = " .. val)
-            end
+        if v[1] == 0 then --Mandatory
+          ptr = v[2](data_tree, tvbuf, ptr)
         end
       end
+      local found = false
       -- analise pids
       while ptr < (data + data_length) do
         pid = tvbuf:range(ptr,1):uint()
@@ -377,21 +617,17 @@ function clou.dissector(tvbuf, pktinfo, root)
         found = false
         for k, v in ipairs(params) do
           if v[1] == pid then
-            val = tvbuf:range(ptr,v[3]):uint()
-            ptr = ptr + v[3]
-            if v[4][val] ~= nil then
-              data_tree:append_text("\n\t" .. v[2] .. " -> " .. v[4][val])
-            else
-              data_tree:append_text("\n\t" .. v[2] .. " = " .. val)
-            end
+            ptr = v[2](data_tree, tvbuf, ptr)
             found = true
             break
           end
         end
         if not found then
-          data_tree:append_text("\n\t*pid not found: " .. pid)
+          data_tree:add(pf_string, tvbuf:range(ptr -1, 1), pid, "**pid not found: " .. pid)
         end
       end
+    else
+      tree:add(pf_string, tvbuf:range(data, data_length), "", " No params ".. tostring(in_or_out) .. " " .. tostring(mt) .. " " .. tostring(mid))
     end
     tree:add(pf_checksum, tvbuf:range(data + data_length, 2))
     --- analize data here!
