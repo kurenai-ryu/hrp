@@ -8,6 +8,10 @@
 --
 -- Version: 1.0
 --
+-- colorize rule
+--
+-- (clou) && (tcp.dstport==9090)
+--
 ----------------------------------------
 print("hello world2")
 -- do not modify this table
