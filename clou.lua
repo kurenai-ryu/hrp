@@ -21,6 +21,9 @@ local debug_level = {
     LEVEL_2  = 2
 }
 
+PASIVE = 0
+ACTIVE = 1
+
 OUT = 0
 IN = 1
 
@@ -233,7 +236,8 @@ end
 
 function gen_strX(pid, name, size)
   size = size or 1
-  if pid > 0 then inco = 1 else inco = 0 end
+  local inco = 0
+  if pid > 0 then inco = 1 end
   return {pid, function(dt, tb, ptr)
     local val = tostring(tb:range(ptr, size):bytes())
     dt:add(pf_string, tb:range(ptr - inco , size + inco),
@@ -244,7 +248,8 @@ end
 
 function gen_uintX(pid, name, size)
   size = size or 1
-  if pid > 0 then inco = 1 else inco = 0 end
+  local inco = 0
+  if pid > 0 then inco = 1 end
   return {pid, function(dt, tb, ptr)
     local val = tb:range(ptr, size):uint()
     dt:add(pf_string, tb:range(ptr - inco , size + inco),
@@ -255,7 +260,8 @@ end
 
 function gen_uint(pid, name, size)
   size = size or 1
-  if pid > 0 then inco = 1 else inco = 0 end
+  local inco = 0
+  if pid > 0 then inco = 1 end
   return {pid, function(dt, tb, ptr)
     local val = tb:range(ptr, size):uint()
     dt:add(pf_string, tb:range(ptr - inco, size + inco),
@@ -267,7 +273,8 @@ end
 function gen_flt(pid, name, factor, size)
   factor = factor or 1.0
   size = size or 1
-  if pid > 0 then inco = 1 else inco = 0 end
+  local inco = 0
+  if pid > 0 then inco = 1 end
   return {pid, function(dt, tb, ptr)
     local val = tb:range(ptr, size):uint()
     dt:add(pf_string, tb:range(ptr - inco, size + inco),
@@ -278,7 +285,8 @@ end
 
 function gen_table(pid, name, table, size)
   size = size or 1
-  if pid > 0 then inco = 1 else inco = 0 end
+  local inco = 0
+  if pid > 0 then inco = 1 end
   return {pid, function(dt, tb, ptr)
     local val = tb:range(ptr, size):uint()
     if table[val] ~= nil then val = table[val] end
@@ -290,7 +298,8 @@ end
 
 function gen_bitmask(pid, name, table, size)
   size = size or 1
-  if pid > 0 then inco = 1 else inco = 0 end
+  local inco = 0
+  if pid > 0 then inco = 1 end
   return {pid, function(dt, tb, ptr)
     local val = tb:range(ptr, size):uint()
     local con = "" -- TODO complete!
@@ -302,7 +311,8 @@ function gen_bitmask(pid, name, table, size)
 end
 
 function gen_var2(pid, name)
-  if pid > 0 then inco = 1 else inco = 0 end
+  local inco = 0
+  if pid > 0 then inco = 1 end
   return {pid, function(dt, tb, ptr)
     local size = tb:range(ptr,2):uint()
     local val = tostring(tb:range(ptr + 2, size):bytes())
@@ -311,10 +321,31 @@ function gen_var2(pid, name)
     return ptr + 2 + size
   end}
 end
-
+function gen_var_table(pid, name, table) -- should be one byte
+  local inco = 0
+  if pid > 0 then inco = 1 end
+  return {pid, function(dt, tb, ptr)
+    local leng = tb:range(ptr, 2):uint()
+    dt:add(pf_string, tb:range(ptr - inco, 2 + inco),
+      "", name .. " size " .. leng)
+    local val
+    for i = 1, leng do
+      val = tb:range(ptr + 1 + i, 1):uint() --fixed size 1
+      if table[val] ~= nil then
+        val = table[val]
+      else
+        val = "##" .. tostring(val)
+      end
+      dt:add(pf_string, tb:range(ptr + 1 + i - inco, 1 + inco),
+        val,"\t" .. name .. " = " .. val)
+    end
+    return ptr + 2 + leng
+  end}
+end
 --read parameter
 function gen_var_read(pid, name)
-  if pid > 0 then inco = 1 else inco = 0 end
+  local inco = 0
+  if pid > 0 then inco = 1 end
   return {pid, function(dt, tb, ptr)
     local tarea = {[0] = "Data Area", [1]= "EPC", [2]="TID", [3]="user"}
     local area = tb:range(ptr, 1):uint()
@@ -328,7 +359,8 @@ function gen_var_read(pid, name)
 end
 
 function gen_adr_read(pid, name)
-  if pid > 0 then inco = 1 else inco = 0 end
+  local inco = 0
+  if pid > 0 then inco = 1 end
   return {pid, function(dt, tb, ptr)
     local size = 3 -- fixed
     local start= tb:range(ptr, 2):uint()
@@ -340,102 +372,128 @@ function gen_adr_read(pid, name)
 end
 
 local tParams = {
-  [OUT] = { -- from PC to reader
-    [0x02] = {
-      [0x0b] = {
-        gen_table(1, "EPC baseband speed",{
-          [0]="Tari=25us, FM0, LHF=40khz",
-          [1]="Tari=25us, Miller4, LHF=250khz",
-          [2]="Tari=25us, Miller4, LHF=300khz",
-          [3]="Tari=6.25us, FM0, LHF=400khz",
-          [255] = "Auto"}),
-        gen_uint (2, "Default Q Value"),
-        gen_uint (3, "Session"),
-        gen_table(4, "Inventory flag",{
-          [0]="use flag A",
-          [1]="use flag B",
-          [2]="Use both A & B"})
+  [PASIVE] = {
+    [OUT] = { -- from PC to reader
+      [0x02] = {
+        [0x0b] = {
+          gen_table(1, "EPC baseband speed",{
+            [0]="Tari=25us, FM0, LHF=40khz",
+            [1]="Tari=25us, Miller4, LHF=250khz",
+            [2]="Tari=25us, Miller4, LHF=300khz",
+            [3]="Tari=6.25us, FM0, LHF=400khz",
+            [255] = "Auto"}),
+          gen_uint (2, "Default Q Value"),
+          gen_uint (3, "Session"),
+          gen_table(4, "Inventory flag",{
+            [0]="use flag A",
+            [1]="use flag B",
+            [2]="Use both A & B"})
+        },
+        [0x10] = {
+          gen_bitmask (0, "Antenna", eANT),
+          gen_table   (0, "Inv/Sing Read Type", {[0]="Single Read", [1]="Continous"}),
+          gen_var_read(1, "Read Param"),
+          gen_uintX   (2, "Tid read", 2),
+          gen_adr_read(3, "UserData read"),
+          gen_adr_read(4, "ReservedData read"),
+          gen_uintX   (5, "Access password", 4),
+          gen_table   (6, "MONZA QT", {[1]="Read"}),
+          gen_table   (7, "RFMICRON temp", {[1]="Read"}),
+          gen_table   (8, "EM Sensor Data", {[1]="Read"}),
+          gen_adr_read(9, "EPC data"),
+        },
+        [0xFF] = {gen_none()},
       },
-      [0x10] = {
-        gen_bitmask (0, "Antenna", eANT),
-        gen_table   (0, "Inv/Sing Read Type", {[0]="Single Read", [1]="Continous"}),
-        gen_var_read(1, "Read Param"),
-        gen_uintX   (2, "Tid read", 2),
-        gen_adr_read(3, "UserData read"),
-        gen_adr_read(4, "ReservedData read"),
-        gen_uintX   (5, "Access password", 4),
-        gen_table   (6, "MONZA QT", {[1]="Read"}),
-        gen_table   (7, "RFMICRON temp", {[1]="Read"}),
-        gen_table   (8, "EM Sensor Data", {[1]="Read"}),
-        gen_adr_read(9, "EPC data"),
-      },
-      [0xFF] = {gen_none()},
     },
-  },
-  [IN] = { -- reader data or reader response
-    [0x02] = {
-      [0x00] = { -- reader cuality? read tag!!!
-        gen_var2 ( 0,"EPC"),
-        gen_uintX( 0, "Tag PC Value", 2),
-        gen_uint ( 0, "Antenna ID"),
-        gen_uint ( 1, "RSSI"),
-        gen_table( 2, "Result",{
-          [0]="Successful",
-          [1]="No response",
-          [2]="CRC error",
-          [3]="Data area locked",
-          [4] ="Data area overflow",
-          [5]="Access password error",
-          [6]="Other tag error",
-          [7]="Other reader error"
-        }),
-        gen_var2 ( 3, "TID"),
-        gen_var2 ( 4, "UserData"),
-        gen_var2 ( 5, "ReservedData"),
-        gen_uint ( 6, "Sub antenna"),
-        { 7, function(dt, tvbuf, ptr)
-          local size = 8
-          local val1 = tvbuf:range(ptr, 4):uint()
-          local val2 = tvbuf:range(ptr + 4 , 4):uint()
-          dt:add(pf_string, tvbuf:range(ptr-1, size+1),
-            val, string.format("UTC =  %i.%06i ms", val1, val2))
-          ptr = ptr + size
-          return ptr
-        end},
-        gen_uintX( 8, "Sequence No", 4),
-        gen_uint ( 9, "Freq[kHz]", 4),
-        gen_flt  (10, "Phase[°]", 0.0490625),
-        gen_strX (11, "EM sensor data", 8),
-        gen_var2 (12, "EPC Data"),
-      },
-      [0x01] = { --finnish
-        gen_table( 0, "TagRead finish",{
-          [0]="single finished",
-          [1]="recieved stop command",
-          [2]="abnormal stop"}),
-      },
-      [0x0b] = {
-        gen_table( 0, "Config Result",{
-          [0] = "Configure successfully",
-          [1] = "Baseband speed reader don’t support.",
-          [2] = "Q value parameter error",
-          [3] = "Session parameter error",
-          [4] = "Inventory parameter error",
-          [5] = "Other parameter error",
-          [6] = "Save failed"}),
-      },
-      [0x10] = {
-        gen_table( 0, "Config Result",{
-          [0] = "Configure successfully",
-          [1] = "Antenna port parameter error",
-          [2] = "Select read parameter error",
-          [3] = "TID read parameter error",
-          [4] = "UserData read parameter error",
-          [5] = "Reserved area parameter error",
-          [6] = "other param error"}),
+    [IN] = { -- reader data or reader response
+      [0x02] = { --0x02 reader cuality
+        [0x00] = {
+          gen_uint ( 0,"Min.RF out power (db)"),
+          gen_uint ( 0, "Max.RF out power(db)"),
+          gen_uint ( 0, "Antenna Qty"),
+          gen_var_table( 0, "Frecuency List",{
+            [0]="920~925 MHz",
+            [1]="840~845MHz",
+            [2]="840~845MHz & 920~925MHz",
+            [3]="FCC 902 ~ 928MHz",
+            [4] ="ETSI, 866~868MHz",
+          }),
+          gen_var_table( 0, "RFID Protocol list",{
+            [0]="ISO18000-6C/EPC C1G2",
+            [1]="ISO18000-6B",
+            [2]="China standard GB/T 29768-2013",
+            [3]="China Military GB/T 7383.1-2011",
+          }),
+        },
+        [0x01] = { --finnish
+          gen_table( 0, "TagRead finish",{
+            [0]="single finished",
+            [1]="recieved stop command",
+            [2]="abnormal stop"}),
+        },
+        [0x0b] = {
+          gen_table( 0, "Config Result",{
+            [0] = "Configure successfully",
+            [1] = "Baseband speed reader don’t support.",
+            [2] = "Q value parameter error",
+            [3] = "Session parameter error",
+            [4] = "Inventory parameter error",
+            [5] = "Other parameter error",
+            [6] = "Save failed"}),
+        },
+        [0x10] = {
+          gen_table( 0, "Config Result",{
+            [0] = "Configure successfully",
+            [1] = "Antenna port parameter error",
+            [2] = "Select read parameter error",
+            [3] = "TID read parameter error",
+            [4] = "UserData read parameter error",
+            [5] = "Reserved area parameter error",
+            [6] = "other param error"}),
+        },
       },
     },
   },
+  [ACTIVE] = {
+    [IN] = {
+      [0x02] = { -- 0x12
+        [0x00] = { -- read tag!!!
+          gen_var2 ( 0,"EPC"),
+          gen_uintX( 0, "Tag PC Value", 2),
+          gen_uint ( 0, "Antenna ID"),
+          gen_uint ( 1, "RSSI"),
+          gen_table( 2, "Result",{
+            [0]="Successful",
+            [1]="No response",
+            [2]="CRC error",
+            [3]="Data area locked",
+            [4] ="Data area overflow",
+            [5]="Access password error",
+            [6]="Other tag error",
+            [7]="Other reader error"
+          }),
+          gen_var2 ( 3, "TID"),
+          gen_var2 ( 4, "UserData"),
+          gen_var2 ( 5, "ReservedData"),
+          gen_uint ( 6, "Sub antenna"),
+          { 7, function(dt, tvbuf, ptr)
+            local size = 8
+            local val1 = tvbuf:range(ptr, 4):uint()
+            local val2 = tvbuf:range(ptr + 4 , 4):uint()
+            dt:add(pf_string, tvbuf:range(ptr-1, size+1),
+              val, string.format("UTC =  %i.%06i ms", val1, val2))
+            ptr = ptr + size
+            return ptr
+          end},
+          gen_uintX( 8, "Sequence No", 4),
+          gen_uint ( 9, "Freq[kHz]", 4),
+          gen_flt  (10, "Phase[°]", 0.0490625),
+          gen_strX (11, "EM sensor data", 8),
+          gen_var2 (12, "EPC Data"),
+        },
+      },
+    }
+  }
 }
 
 
@@ -569,6 +627,8 @@ function clou.dissector(tvbuf, pktinfo, root)
     tree:add(pf_rs485f, tvbuf:range(1,1))
     local rs485 = bit32.band(tvbuf:range(1,1):uint(), 0x20)
     tree:add(pf_af, tvbuf:range(1,1))
+    local af = PASIVE
+    if bit32.band(tvbuf:range(1,1):uint(), 0x10) > 0 then af = ACTIVE end
     tree:add(pf_mt, tvbuf:range(1,1))
     local mt = bit32.band(tvbuf:range(1,1):uint(), 0x0F)
     local mid = tvbuf:range(2,1):uint()
@@ -602,8 +662,8 @@ function clou.dissector(tvbuf, pktinfo, root)
       tree:add(pf_data, tvbuf:range(data,data_length), "","--No data!")
       data_tree = tree
     end
-    if tParams[in_or_out] ~= nil and tParams[in_or_out][mt] ~= nil and tParams[in_or_out][mt][mid] ~= nil then
-      local params = tParams[in_or_out][mt][mid]
+    if tParams[af] ~= nil and tParams[af][in_or_out] ~= nil and tParams[af][in_or_out][mt] ~= nil and tParams[af][in_or_out][mt][mid] ~= nil then
+      local params = tParams[af][in_or_out][mt][mid]
       local ptr = data
       local pid
       local val
