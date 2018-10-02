@@ -102,20 +102,26 @@ local eREAD_TYPE = {
 }
 
 local eRF_REGION = {
-    [0] = "REGION_GB1",
-    [1] = "REGION_GB2",
-    [2] = "REGION_GB3",
-    [3] = "REGION_FCC",
-    [4] = "REGION_ETSI",
-    [5] = "REGION_JP",
-    [6] = "REGION_TW",
-    [7] = "REGION_ID",
-    [8] = "REGION_RUS"
+    [0] = "GB1  920~925MHz",
+    [1] = "GB2  840~845MHz",
+    [2] = "GB3  840~845MHz & 920~925MHz",
+    [3] = "FCC  902~928MHz",
+    [4] = "ETSI 866~868MHz",
+    [5] = "JP   916.8~920.4MHz",
+    [6] = "TW   922.25~927.75MHz",
+    [7] = "INA  923.125~925.125MHz",
+    [8] = "RUS  866.6~867.4MHz"
 }
+
 
 local eFREQ_JMP = {
     [0] = "SEQUEN_SWITCH",
     [1] = "AUTO_SWITCH" --test if its correct (official is 0 too)
+}
+
+local tGPIO_LEVEL = {
+    [0] = "Low Level",
+	[1] = "High Level"
 }
 
 local tFrameHead = {
@@ -150,7 +156,7 @@ local tMessagesIds = {
     [0x05] = "Query reader IP",
     [0x06] = "Query reader MAC",
     [0x07] = "Configure server/client mode parameter",
-    [0x08] = "Query ser ver/client mode parameter",
+    [0x08] = "Query server/client mode parameter",
     [0x09] = "Configure GPO status",
     [0x0A] = "Query GPI status",
     [0x0B] = "Configure GPI trigger parameter",
@@ -165,6 +171,7 @@ local tMessagesIds = {
     [0x14] = "Restore reader default configuration",
     [0x15] = "Configure reader RS485 device address",
     [0x16] = "Query reader RS485 device address",
+	[0x1B] = "Get cached data...",
   },
   [2]={
     [0x00] = "Query reader RFID ability",
@@ -226,6 +233,11 @@ clou.fields = {
   pf_dlength, pf_data,
   pf_checksum
 }
+
+
+local ef_too_short = ProtoExpert.new("clou.too_short.expert", "Clou message too short",
+                                     expert.group.MALFORMED, expert.severity.ERROR)
+clou.experts = {ef_too_short}
 
 function gen_none()
   return {0, function(dt, tb, ptr)
@@ -309,6 +321,18 @@ function gen_bitmask(pid, name, table, size)
       return ptr + size
   end}
 end
+function gen_var_string(pid, name)
+  local inco = 0
+  if pid > 0 then inco = 1 end
+  return {pid, function(dt, tb, ptr)
+    local size = tb:range(ptr,2):uint()
+    local val = (tb:range(ptr + 2, size):string())
+    dt:add(pf_string, tb:range(ptr - inco, inco + 2 + size),
+      val, string.format("%s[%i] -> %s",name, size, val))
+    return ptr + 2 + size
+  end}
+end
+
 
 function gen_var2(pid, name)
   local inco = 0
@@ -321,13 +345,14 @@ function gen_var2(pid, name)
     return ptr + 2 + size
   end}
 end
+
 function gen_var_table(pid, name, table) -- should be one byte
   local inco = 0
   if pid > 0 then inco = 1 end
   return {pid, function(dt, tb, ptr)
     local leng = tb:range(ptr, 2):uint()
     dt:add(pf_string, tb:range(ptr - inco, 2 + inco),
-      "", name .. " size " .. leng)
+      "", name .. " list size " .. leng)
     local val
     for i = 1, leng do
       val = tb:range(ptr + 1 + i, 1):uint() --fixed size 1
@@ -374,6 +399,11 @@ end
 local tParams = {
   [PASIVE] = {
     [OUT] = { -- from PC to reader
+	  [0x01] = {
+	    [0x0C] = {
+		  gen_table(0, "GPI port", {[0]="GPI1",[1]="GPI2",[2]="GPI3",[3]="GPI4"})
+		}
+	  },
       [0x02] = {
         [0x0b] = {
           gen_table(1, "EPC baseband speed",{
@@ -405,20 +435,47 @@ local tParams = {
         [0xFF] = {gen_none()},
       },
     },
-    [IN] = { -- reader data or reader response
+    [IN] = { -- reader response
+	  [0x01]={ --config management
+	    [0x00]={ --quiery reader info
+		  gen_uintX(0,"App software version",4), -- TODO: parse version "u16.u8.u8"
+		  gen_var_string(0, "Reader Name"),
+		  gen_uint(0,"Power-on time [s]", 4)
+	    },
+		[0x01]={
+		  gen_uintX(0,"BaseBand software version",4), -- TODO: parse version "u16.u8.u8"
+		},
+		[0x08] = { --server/client mode
+		  gen_table(0,"Mode",{[0]="Server",[1]="Client"}),
+		  gen_uint (0, "server TCP port", 2),
+		  gen_uintX(0, "client IP addr", 4), -- TODO: replace with gen_ip
+		  gen_uint (0, "client TCP port", 2),
+		},
+		[0x0A]={
+		  gen_table(1,"GPI1 Level", tGPIO_LEVEL),
+		  gen_table(2,"GPI2 Level", tGPIO_LEVEL),
+		  gen_table(3,"GPI3 Level", tGPIO_LEVEL),
+		  gen_table(4,"GPI4 Level", tGPIO_LEVEL),
+		},
+		[0x0C] = {
+		  gen_table(0, "Trigger start condition", {[0]="OFF", [1]="Low level", [2]="high level", [3]="rising edge", [4]="falling edge", [5]="random edge"}),
+		  gen_var2(0, "trigger command"),
+		  gen_table(0, "Trigger stop condition", {[0]="NO stop", [1]="Low level", [2]="high level", [3]="rising edge", [4]="falling edge", [5]="random edge", [6]="delaystop"}),
+		  gen_uint (0,"Delay Stop Time [x10ms]", 2),
+		  gen_table(0, "reset trigger", {[0]="don't update", [1]="update"})
+		  
+		},
+		[0x01b]={
+		  gen_table(0,"Get Cached data", {[0]="cache exists", [1]="no cache", [2]="upload end"}),
+		}
+	  },
       [0x02] = { --0x02 reader cuality
         [0x00] = {
           gen_uint ( 0,"Min.RF out power (db)"),
           gen_uint ( 0, "Max.RF out power(db)"),
           gen_uint ( 0, "Antenna Qty"),
-          gen_var_table( 0, "Frecuency List",{
-            [0]="920~925 MHz",
-            [1]="840~845MHz",
-            [2]="840~845MHz & 920~925MHz",
-            [3]="FCC 902 ~ 928MHz",
-            [4] ="ETSI, 866~868MHz",
-          }),
-          gen_var_table( 0, "RFID Protocol list",{
+          gen_var_table( 0, "Supported Frequency", eRF_REGION),
+          gen_var_table( 0, "RFID Protocol",{
             [0]="ISO18000-6C/EPC C1G2",
             [1]="ISO18000-6B",
             [2]="China standard GB/T 29768-2013",
@@ -431,6 +488,17 @@ local tParams = {
             [1]="recieved stop command",
             [2]="abnormal stop"}),
         },
+		[0x04] = {
+			gen_table( 0, "RF Frequency Band", eRF_REGION),
+		},
+		[0x06] = {
+			gen_table(0, "Freq. auto setting", {[0]="from channel list", [1]="auto band (ignore list)"}),
+			gen_var_table(0,"Frequency Channel", {}),
+		},
+		[0x0a] = {
+			gen_uint(0, "Repeat Tag Filtering Time (ms)", 2),
+			gen_uint(0, "RSSI threshold")
+		},
         [0x0b] = {
           gen_table( 0, "Config Result",{
             [0] = "Configure successfully",
@@ -441,6 +509,10 @@ local tParams = {
             [5] = "Other parameter error",
             [6] = "Save failed"}),
         },
+		[0x0e] = {
+			gen_table(0, "Auto-idle mode", {[0]="disabled (close)", [1]="Enable auto idle"}),
+			gen_uint(0,"Auto idle time (x10ms)",2)
+		},
         [0x10] = {
           gen_table( 0, "Config Result",{
             [0] = "Configure successfully",
@@ -451,6 +523,11 @@ local tParams = {
             [5] = "Reserved area parameter error",
             [6] = "other param error"}),
         },
+		[0xff] = { --stop
+          gen_table( 0, "Stop Result",{
+            [0] = "Stop successful",
+            [1] = "System Error",}),
+        },		
       },
     },
   },
@@ -491,6 +568,12 @@ local tParams = {
           gen_strX (11, "EM sensor data", 8),
           gen_var2 (12, "EPC Data"),
         },
+		[0x01] = { --reader finish
+			gen_table( 0, "Tag Finnish Reason",{
+				[0] = "Single Operation finished",
+				[1] = "Received stop command",
+				[2] = "hardware abnormal interrupt"}),
+		},
       },
     }
   }
@@ -657,41 +740,42 @@ function clou.dissector(tvbuf, pktinfo, root)
 
     data = data + 2
     if data_length > 0 then
-      data_tree = tree:add(pf_data, tvbuf:range(data,data_length))
-    else
+		data_tree = tree:add(pf_data, tvbuf:range(data,data_length))
+		if tParams[af] ~= nil and tParams[af][in_or_out] ~= nil and tParams[af][in_or_out][mt] ~= nil and tParams[af][in_or_out][mt][mid] ~= nil then
+		  local params = tParams[af][in_or_out][mt][mid]
+		  local ptr = data
+		  local pid
+		  local val
+		  -- analise Mandatory
+		  for k, v in ipairs(params) do
+			if v[1] == 0 then --Mandatory
+			  ptr = v[2](data_tree, tvbuf, ptr)
+			end
+		  end
+		  local found = false
+		  -- analise pids
+		  while ptr < (data + data_length) do
+			pid = tvbuf:range(ptr,1):uint()
+			ptr = ptr + 1
+			found = false
+			for k, v in ipairs(params) do
+			  if v[1] == pid then
+				ptr = v[2](data_tree, tvbuf, ptr)
+				found = true
+				break
+			  end
+			end
+			if not found then
+			  data_tree:add(pf_string, tvbuf:range(ptr -1, 1), pid, "**pid not found: " .. pid)
+			end
+		  end
+		else
+		  tree:add(pf_string, tvbuf:range(data, data_length), "", string.format(" No params (AA%X%X%02X) [%x][%x][0x%x][0x%02x]",af,mt,mid, af, in_or_out, mt, mid))
+		end
+
+	  else
       tree:add(pf_data, tvbuf:range(data,data_length), "","--No data!")
       data_tree = tree
-    end
-    if tParams[af] ~= nil and tParams[af][in_or_out] ~= nil and tParams[af][in_or_out][mt] ~= nil and tParams[af][in_or_out][mt][mid] ~= nil then
-      local params = tParams[af][in_or_out][mt][mid]
-      local ptr = data
-      local pid
-      local val
-      -- analise Mandatory
-      for k, v in ipairs(params) do
-        if v[1] == 0 then --Mandatory
-          ptr = v[2](data_tree, tvbuf, ptr)
-        end
-      end
-      local found = false
-      -- analise pids
-      while ptr < (data + data_length) do
-        pid = tvbuf:range(ptr,1):uint()
-        ptr = ptr + 1
-        found = false
-        for k, v in ipairs(params) do
-          if v[1] == pid then
-            ptr = v[2](data_tree, tvbuf, ptr)
-            found = true
-            break
-          end
-        end
-        if not found then
-          data_tree:add(pf_string, tvbuf:range(ptr -1, 1), pid, "**pid not found: " .. pid)
-        end
-      end
-    else
-      tree:add(pf_string, tvbuf:range(data, data_length), "", " No params ".. tostring(in_or_out) .. " " .. tostring(mt) .. " " .. tostring(mid))
     end
     tree:add(pf_checksum, tvbuf:range(data + data_length, 2))
     --- analize data here!
