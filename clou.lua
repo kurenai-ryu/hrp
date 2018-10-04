@@ -372,14 +372,15 @@ function gen_var_read(pid, name)
   local inco = 0
   if pid > 0 then inco = 1 end
   return {pid, function(dt, tb, ptr)
+    local tsize = tb:range(ptr, 2):uint()
     local tarea = {[0] = "Data Area", [1]= "EPC", [2]="TID", [3]="user"}
-    local area = tb:range(ptr, 1):uint()
-    local start= tb:range(ptr + 1, 2):uint()
-    local size = tb:range(ptr + 3, 1):uint()
-    local val = tostring(tb:range(ptr + 4, size):bytes())
-    dt:add(pf_string, tb:range(ptr - inco, inco + 4 + size),
-      val, string.format("%s[%s][%i] -> %s",name, tarea[area], start, val))
-    return ptr + 4 + size
+    local area = tb:range(ptr + 2, 1):uint()
+    local start= tb:range(ptr + 3, 2):uint()
+    local size = tb:range(ptr + 5, 1):uint() -- in bits! not bytes nor words
+    local val = tostring(tb:range(ptr + 6, tsize-4):bytes())
+    dt:add(pf_string, tb:range(ptr - inco, inco + 2 + tsize),
+      val, string.format("%s:%s:[%i][%s] -> %s",name, tarea[area], start, size, val))
+    return ptr + 2 + tsize
   end}
 end
 
@@ -436,7 +437,7 @@ local tParams = {
           gen_bitmask (0, "antenna port", eANT),
           gen_table   (0, "Data Area", {[0]="Reserverd", [1]="EPC", [2]="TID", [3]="user"}),
           gen_uintX   (0, "start address",2),
-          gen_var2    (0, "Data cotent"),
+          gen_var2    (0, "Data content"),
           gen_var_read(1, "MatchParameter"),
           gen_uintX   (2, "access password", 4),
           gen_uint    (3, "block write")
@@ -532,6 +533,23 @@ local tParams = {
             [5] = "Reserved area parameter error",
             [6] = "other param error"}),
         },
+		[0x11] = {
+		  gen_table(0, "Write result", {
+		    [0] = "Write successful",
+			[1] = "antenna port error",
+			[2] = "select param error",
+			[3] = "write param error",
+			[4] = "CRC calib error",
+			[5] = "power insufficient",
+			[6] = "data area overflow",
+			[7] = "data area locked",
+			[8] = "access password error",
+			[9] = "other tag error",
+			[10] = "tag lost",
+			[11] = "reader tx cmd error",
+		  }),
+		  gen_uint(1, "write failure word address", 2),
+		},
 		[0xff] = { --stop
           gen_table( 0, "Stop Result",{
             [0] = "Stop successful",
