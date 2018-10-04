@@ -361,7 +361,7 @@ function gen_var_table(pid, name, table) -- should be one byte
       else
         val = "##" .. tostring(val)
       end
-      dt:add(pf_string, tb:range(ptr + 1 + i - inco, 1 + inco),
+      dt:add(pf_string, tb:range(ptr + 1 + i, 1),
         val,"\t" .. name .. " = " .. val)
     end
     return ptr + 2 + leng
@@ -406,6 +406,13 @@ local tParams = {
 		    }
 	    },
       [0x02] = {
+	    [0x03] = { -- configure band
+		  gen_table(0, "Frecuency Band", eRF_REGION),
+		},
+		[0x05] = {
+		  gen_table(0, "Freq. auto setting", {[0]="from channel list", [1]="auto band (ignore list)"}),
+		  gen_var_table(1,"Channel list",{})
+		},
         [0x0b] = {
           gen_table(1, "EPC baseband speed",{
             [0]="Tari=25us, FM0, LHF=40khz",
@@ -498,8 +505,14 @@ local tParams = {
             [1]="recieved stop command",
             [2]="abnormal stop"}),
         },
+		[0x03] = {
+			gen_table(0, "Config result", {[0]="successful",[1]="reader doesn't support",[2]="save failed"})
+		},
 		[0x04] = {
 			gen_table( 0, "RF Frequency Band", eRF_REGION),
+		},
+		[0x05] = {
+			gen_table(0, "Config result", {[0]="successful",[1]="signal channel not in current frecuency band",[2]="Invalid Frecuency point Qty", [3]="other parameter error", [4]="save error"}),
 		},
 		[0x06] = {
 			gen_table(0, "Freq. auto setting", {[0]="from channel list", [1]="auto band (ignore list)"}),
