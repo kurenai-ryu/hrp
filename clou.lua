@@ -399,11 +399,11 @@ end
 local tParams = {
   [PASIVE] = {
     [OUT] = { -- from PC to reader
-	  [0x01] = {
-	    [0x0C] = {
-		  gen_table(0, "GPI port", {[0]="GPI1",[1]="GPI2",[2]="GPI3",[3]="GPI4"})
-		}
-	  },
+	    [0x01] = {
+	      [0x0C] = {
+		      gen_table(0, "GPI port", {[0]="GPI1",[1]="GPI2",[2]="GPI3",[3]="GPI4"})
+		    }
+	    },
       [0x02] = {
         [0x0b] = {
           gen_table(1, "EPC baseband speed",{
@@ -422,7 +422,7 @@ local tParams = {
         [0x10] = {
           gen_bitmask (0, "Antenna", eANT),
           gen_table   (0, "Inv/Sing Read Type", {[0]="Single Read", [1]="Continous"}),
-          gen_var_read(1, "Read Param"),
+          gen_var_read(1, "MatchParameter"),
           gen_uintX   (2, "Tid read", 2),
           gen_adr_read(3, "UserData read"),
           gen_adr_read(4, "ReservedData read"),
@@ -431,6 +431,15 @@ local tParams = {
           gen_table   (7, "RFMICRON temp", {[1]="Read"}),
           gen_table   (8, "EM Sensor Data", {[1]="Read"}),
           gen_adr_read(9, "EPC data"),
+        },
+        [0x11] = { --write tag
+          gen_bitmask (0, "antenna port", eANT),
+          gen_table   (0, "Data Area", {[0]="Reserverd", [1]="EPC", [2]="TID", [3]="user"}),
+          gen_uintX   (0, "start address",2),
+          gen_var2    (0, "Data cotent"),
+          gen_var_read(1, "MatchParameter"),
+          gen_uintX   (2, "access password", 4),
+          gen_uint    (3, "block write")
         },
         [0xFF] = {gen_none()},
       },
@@ -463,7 +472,7 @@ local tParams = {
 		  gen_table(0, "Trigger stop condition", {[0]="NO stop", [1]="Low level", [2]="high level", [3]="rising edge", [4]="falling edge", [5]="random edge", [6]="delaystop"}),
 		  gen_uint (0,"Delay Stop Time [x10ms]", 2),
 		  gen_table(0, "reset trigger", {[0]="don't update", [1]="update"})
-		  
+
 		},
 		[0x01b]={
 		  gen_table(0,"Get Cached data", {[0]="cache exists", [1]="no cache", [2]="upload end"}),
@@ -527,7 +536,7 @@ local tParams = {
           gen_table( 0, "Stop Result",{
             [0] = "Stop successful",
             [1] = "System Error",}),
-        },		
+        },
       },
     },
   },

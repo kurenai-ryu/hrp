@@ -1,3 +1,39 @@
+#!/usr/bin/env python2
+# # -*- coding: utf-8 -*-
+import sys
+import inspect
+import logging
+import functools
+#import traceback
+
+LOGGER = logging.getLogger('hrp')
+LOGGER.setLevel(logging.WARNING)
+_LOGH = logging.StreamHandler()
+_LOGH.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+LOGGER.addHandler(_LOGH)
+
+def log_call(level=logging.DEBUG):
+    """logs func name"""
+    def decorator(fn):
+        @functools.wraps(fn)
+        def inner(*args, **kwargs):
+            if level != logging.DEBUG:
+                LOGGER.log(logging.DEBUG, "\n") # space
+            res = inspect.getcallargs(fn, *args, **kwargs)
+            #print res debug
+            LOGGER.log(level, "CALL hrp.%s(%s)",fn.__name__, ", ".join(["{}={}".format(k,res[k]) for k in res if k != 'self']))
+            return fn(*args, **kwargs)
+        return inner
+    return decorator
+
+
+if sys.version_info[0]:
+    def _ord(b):
+        return ord(b)
+else:
+    def _ord(b):
+        return b
+
 CRC16_BUYDATA = [
 0x0000, 0x8005, 0x800F, 0x000A, 0x801B, 0x001E,
 0x0014, 0x8011, 0x8033, 0x0036, 0x003C, 0x8039,
@@ -48,5 +84,5 @@ def crc16(data, crc=0x0000):
     CRC-16-BUYDATA
     '''
     for byte in data:
-        crc = ((crc<<8)&0xff00) ^ CRC16_BUYDATA[((crc>>8)&0xff)^byte]
+        crc = ((crc << 8) & 0xff00) ^ CRC16_BUYDATA[((crc >> 8) & 0xff) ^ _ord(byte)]
     return crc & 0xffff
