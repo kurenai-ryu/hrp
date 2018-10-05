@@ -7,6 +7,7 @@ import logging
 
 from hrp import HRP
 from hrp.hrp import TidReadParameter, TagAddress
+from hrp.const import * # optimize list later
 from hrp.exception import *
 
 try:

@@ -40,6 +40,9 @@ class HRP(object):
         self.name = ""
         self.version = "-"
         self.deltalive = None
+        self.region = 0 # GB1 = 920~925 ???
+        self.auto = False # assumed
+        self.channels = [] # empty
 
     @log_call(logging.INFO)
     def __test_ping(self):
@@ -121,9 +124,13 @@ class HRP(object):
             raise HDPNetworkError("can't reach reader (ping {})".format(self.address[0]))
         if not self._connect_tcp(self.timeout):
             raise HDPNetworkError("can't connect tcp reader ({})".format(self.address[0]))
-        LOGGER.info("connected")
+        LOGGER.info("connecting...")
         self.reader_info()
         self.reader_ability()
+        self.reader_band_region()
+        self.reader_band_channels()
+        self.reader_power()
+        LOGGER.info("connected")
 
     @log_call(logging.INFO)
     def disconnect(self):
@@ -304,6 +311,100 @@ class HRP(object):
         mid = MID_OP_STOP_COMMAND
         self._send_packet(mt, mid)
         self._recieve_packet(mt, mid)
-        result = self.__shift_mandatory_int()
-        LOGGER.info(" stop response (0:ok) is %s", result)
-        return result == 0 # 0 is ok!
+        self.result = self.__shift_mandatory_int()
+        LOGGER.info(" stop response (0:ok) is %s", self.result)
+        return self.result == 0 # 0 is ok!
+
+    @log_call(logging.INFO)
+    def reader_band_region(self, new_region=None):
+        """ get or set band command AA0205"""
+        if new_region is None: #read!
+            mt = MT_OPERATION
+            mid = MID_OP_QUERY_READER_RF_FREQUENCY_BAND
+            payload= b""
+        else:
+            mt = MT_OPERATION
+            mid = MID_OP_CONFIGURE_READER_RF_FREQUENCY_BAND
+            payload = pack("B", new_region)
+        self._send_packet(mt, mid)
+        self._recieve_packet(mt, mid)
+        self.result = self.__shift_mandatory_int()
+        if new_region is None: #read
+            LOGGER.info(" Region: %s", RF_REGION[self.result])
+            self.region = self.result
+            return self.result
+        #if write
+        LOGGER.info(" write band region response (0:ok) is %s", self.result)
+        self.region = new_region
+        return self.result == 0 # 0 is ok!
+
+    @log_call(logging.INFO)
+    def reader_band_channels(self, channel_list=None, auto=True):
+        """ get or set band command AA0205"""
+        chlist = RF_REGION_CHANNELS[self.region]
+        if not channel_list: #read!
+            mt = MT_OPERATION
+            mid = MID_OP_QUERY_READER_WORKING_FREQUENCY
+            payload= b""
+        else:
+            mt = MT_OPERATION
+            mid = MID_OP_CONFIGURE_READER_WORKING_FREQUENCY
+            chstring = b""
+            for ch in channel_list:
+                if ch >=len(chlist):
+                    LOGGER.warn(" Invalid channel %i ommiting!", ch)
+                else:
+                    chstring += pack("B", ch)
+            payload = pack(">BBH", int(auto), 1, len(chstring)) #pid=1
+
+        self._send_packet(mt, mid)
+        self._recieve_packet(mt, mid)
+
+        if not channel_list: #read
+            self.auto = bool(self.__shift_mandatory_int())
+            channels = self.__shift_mandatory_var()
+
+            LOGGER.info(" Range: %s", "full (automatic)" if self.auto else "fixed from list")
+            self.channels = [ _ord(ch) for ch in channels ]
+            for ch in self.channels:
+                if ch >= len(chlist):
+                    LOGGER.warn(" Invalid channel %i", ch)
+                else:
+                    LOGGER.info(" Channel: %i, %.2f MHz",ch,chlist[ch])
+            LOGGER.debug(" end ch")
+            return self.channels
+        #if write
+        self.result = self.__shift_mandatory_int()
+        LOGGER.info(" write band region response (0:ok) is %s", self.result)
+        self.region = new_region
+        return self.result == 0 # 0 is ok!
+
+    @log_call(logging.INFO)
+    def reader_power(self, new_power=None, antennas=None):
+        """ get or set reader power AA0202"""
+        if new_power is None: #read!
+            mt = MT_OPERATION
+            mid = MID_OP_QUERY_READER_POWER
+
+        else:
+            mt = MT_OPERATION
+            mid = MID_OP_CONFIGURE_READER_POWER
+            payload = b""
+            if antennas is None:
+                antennas = self.antennas
+            if type(antennas) is int and antennas < 4:
+                antennas = range(1, antennas + 1)
+            for ant in antennas:
+                payload += pack(">BB",ant, new_power)
+        self._send_packet(mt, mid)
+        self._recieve_packet(mt, mid)
+        if new_power is None: #read
+            while len(self.__response):
+                pid = self.__shift_mandatory_int()
+                apow = self.__shift_mandatory_int()
+                LOGGER.info(" Antenna#%i = %i dBm", pid, apow)
+            return apow #TODO catch error
+        #if write
+        self.result = self.__shift_mandatory_int()
+        LOGGER.info(" write antenna power response (0:ok) is %s", self.result)
+        return self.result == 0 # 0 is ok!

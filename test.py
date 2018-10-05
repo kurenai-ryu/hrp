@@ -18,6 +18,23 @@ except AttributeError:
 from hrp import HRP
 from hrp.exception import HDPNetworkError
 
+BASIC_CONNECT = [ # up to reader_band_channels
+    #header: query_reader_info
+    codecs.decode('aa0100001b', 'hex'),
+    codecs.decode('000101100011434c3732303642325f3230313730363036000160424a14', 'hex'),
+    #5 byte header query_reader_ability
+    codecs.decode('AA0200000E', 'hex'),
+    codecs.decode('0024040005000102030400020001527C', 'hex'),
+    #reader band region
+    codecs.decode('aa02040001', 'hex'),
+    codecs.decode('03d6f9', 'hex'), # 3 = FCC
+    # reader band channels list
+    codecs.decode('aa0206001c', 'hex'),
+    codecs.decode('000019191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f30312673', 'hex'), # fixed
+    # reader power!
+    codecs.decode('aa02020004', 'hex'),
+    codecs.decode('011e021e3a10', 'hex'),
+]
 
 
 class HRPTest(unittest.TestCase):
@@ -50,12 +67,7 @@ class HRPTest(unittest.TestCase):
         #HRP.setLogLevel(logging.DEBUG)
         subprocess.call.return_value = 0
         socket.return_value.connect_ex.return_value = 0
-        socket.return_value.recv.side_effect = [
-            codecs.decode('aa0100001b', 'hex'), #header: query_reader_info
-            codecs.decode('000101100011434c3732303642325f3230313730363036000160424a14', 'hex'),
-            codecs.decode('AA0200000E', 'hex'), #5 byte header query_reader_ability
-            codecs.decode('0024040005000102030400020001527C', 'hex'),
-        ]
+        socket.return_value.recv.side_effect = BASIC_CONNECT
         conn = HRP('192.168.1.116')
         conn.connect()
         subprocess.call.assert_called()
@@ -68,12 +80,7 @@ class HRPTest(unittest.TestCase):
         #HRP.setLogLevel(logging.DEBUG)
         subprocess.call.return_value = 0
         socket.return_value.connect_ex.return_value = 0
-        socket.return_value.recv.side_effect = [
-            codecs.decode('aa0100001b', 'hex'), #header: query_reader_info
-            codecs.decode('000101100011434c3732303642325f3230313730363036000160424a14', 'hex'),
-            codecs.decode('AA0200000E', 'hex'), #5 byte header query_reader_ability
-            codecs.decode('0024040005000102030400020001527C', 'hex'),
-        ]
+        socket.return_value.recv.side_effect = BASIC_CONNECT
         conn = HRP('192.168.1.116')
         conn.connect() # parsed reader_info & reader_ability
         self.assertEqual(conn.name, "CL7206B2_20170606", "incorrect name %s" % conn.name)
@@ -89,12 +96,7 @@ class HRPTest(unittest.TestCase):
         #HRP.setLogLevel(logging.DEBUG)
         subprocess.call.return_value = 0
         socket.return_value.connect_ex.return_value = 0
-        socket.return_value.recv.side_effect = [
-            codecs.decode('aa0100001b', 'hex'), #header: query_reader_info
-            codecs.decode('000101100011434c3732303642325f3230313730363036000160424a14', 'hex'),
-            codecs.decode('AA0200000E', 'hex'), #header: query_reader_ability
-            codecs.decode('0024040005000102030400020001527C', 'hex'),
-        ]
+        socket.return_value.recv.side_effect = BASIC_CONNECT
         conn = HRP('192.168.1.116')
         conn.connect()
         conn._send_packet(5,5) # TEST,swr detect,""
