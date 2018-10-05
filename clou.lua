@@ -500,10 +500,11 @@ local tParams = {
           }),
         },
         [0x01] = { --finnish
-          gen_table( 0, "TagRead finish",{
+          gen_table( 0, "configure result",{
             [0]="single finished",
-            [1]="recieved stop command",
-            [2]="abnormal stop"}),
+            [1]="incorrect port",
+            [2]="unsupported power",
+			[3]="save failed"}),
         },
 		[0x03] = {
 			gen_table(0, "Config result", {[0]="successful",[1]="reader doesn't support",[2]="save failed"})
