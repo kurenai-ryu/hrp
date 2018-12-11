@@ -7,15 +7,12 @@ from struct import pack, unpack
 import codecs
 import datetime
 
+from .tag import TidReadParameter, TagAddress, MatchParameter
 from .exception import *
 from .util import crc16, _ord, LOGGER, log_call
+from .tag import Tag
 from .const import *
 
-from collections import namedtuple
-
-TidReadParameter = namedtuple('TidReadParameter', 'fixed, size')
-TagAddress = namedtuple('TagAddress', 'start, size')
-MatchParameter = namedtuple('MatchParameter', 'area, start, length, content')
 
 class HRP(object):
     """ clase para conexión Clou/Hopeland Hopeland Reader Protocol - HRP """
@@ -127,30 +124,32 @@ class HRP(object):
         LOGGER.info("connecting...")
         self.reader_info()
         self.reader_ability()
-        self.reader_band_region()
-        self.reader_band_channels()
-        self.reader_power()
+        self.band_region()
+        self.band_channels()
+        self.power()
         LOGGER.info("connected")
 
     @log_call(logging.INFO)
     def disconnect(self):
         """ connect"""
         #add extra commands...
+        if self.socket:
+            self.stop()
         self._disconnect_tcp()
 
-    def __shift_mandatory_int(self, size=1):
+    def __response_shift_int(self, size=1):
         """ mandatory is without pid"""
         val, = unpack(">I", self.__response[:size].rjust(4, b'\x00'))
         self.__response = self.__response[size:]
         return val
 
-    def __shift_mandatory_fixed(self, size=1):
+    def __response_shift_fixed(self, size=1):
         """ mandatory is without pid"""
         val, = self.__response[:size]
         self.__response = self.__response[size:]
         return val
 
-    def __shift_mandatory_var(self):
+    def __response_shift_var(self):
         """ mandatory  variable"""
         size, = unpack(">H", self.__response[:2])
         self.__response = self.__response[2:]
@@ -158,7 +157,7 @@ class HRP(object):
         self.__response = self.__response[size:]
         return val
 
-    def __shift_mandatory_version(self):
+    def __response_shift_version(self):
         """ mandatory is without pid"""
         val = unpack(">HBB", self.__response[:4])
         self.__response = self.__response[4:]
@@ -172,12 +171,12 @@ class HRP(object):
         self._send_packet(mt, mid)
         self._recieve_packet(mt, mid)
         #Mandatory fixed
-        major, minor, patch = self.__shift_mandatory_version()
+        major, minor, patch = self.__response_shift_version()
         self.version = "{}.{}.{}".format(major, minor, patch)
         LOGGER.info(" VERSION %s", self.version)
-        self.name = str(self.__shift_mandatory_var().decode('utf-8'))
+        self.name = str(self.__response_shift_var().decode('utf-8'))
         LOGGER.info(" Reader name %s", self.name)
-        live = self.__shift_mandatory_int(4)
+        live = self.__response_shift_int(4)
         self.deltalive = datetime.timedelta(seconds=live)
         LOGGER.info(" Uptime: %s", self.deltalive)
 
@@ -189,18 +188,18 @@ class HRP(object):
         self._send_packet(mt, mid)
         self._recieve_packet(mt, mid)
         #Mandatory fixed
-        self.min_power = self.__shift_mandatory_int()
-        self.max_power = self.__shift_mandatory_int()
-        self.antennas = self.__shift_mandatory_int()
+        self.min_power = self.__response_shift_int()
+        self.max_power = self.__response_shift_int()
+        self.antennas = self.__response_shift_int()
         LOGGER.info(" min_pow:%i, max_pow:%i", self.min_power, self.max_power)
         LOGGER.info(" antennas:%i", self.antennas)
         #parse FReq list?
-        list = self.__shift_mandatory_var() # TODO: parse
+        list = self.__response_shift_var() # TODO: parse
         for fl in list:
             fl = _ord(fl)
             LOGGER.info(" supported bands: [%i] = %s", fl, RF_REGION[fl])
         #parse protocol list?
-        protocols = self.__shift_mandatory_var()
+        protocols = self.__response_shift_var()
         for fl in protocols:
             fl = _ord(fl)
             LOGGER.info(" supported protocols: [%i] = %s", fl, RF_PROTOCOL[fl])
@@ -212,18 +211,18 @@ class HRP(object):
         mid = MID_OP_READ_EPC_TAG
         LOGGER.debug(" read antennas %i", antennas)
         params = pack(">BB", antennas, 1) #fixed inventory - continous read
-        if match is not None:
+        if match is not None and type(match) is MatchParameter:
             LOGGER.debug("adding match %i", match.area)
             params += pack(">BBHB", 1, match.area, match.start,len(match.content))
             params += match.content
-        if tid is not None:
+        if tid is not None and type(tid) is TidReadParameter:
             LOGGER.debug(" adding tid %s", tid)
             # tid[0] 0-> variable up to [1], 1-> fixed read [1] words
             params += pack(">BBB", 2, tid.fixed, tid.size)
-        if udata is not None:
+        if udata is not None and type(udata) is TagAddress:
             LOGGER.debug(" adding udata")
             params += pack(">BHB", 3, udata.start, udata.size)
-        if rdata is not None:
+        if rdata is not None and type(rdata) is TagAddress:
             LOGGER.debug(" adding rdata")
             params += pack(">BHB", 4, rdata.start, rdata.size)
         if password is not None:
@@ -238,13 +237,13 @@ class HRP(object):
         if em_sensor:
             LOGGER.debug(" adding EM sensor data")
             params += pack(">BB", 8, 1) #fixed 1
-        if edata is not None:
+        if edata is not None and type(edata) is TagAddress:
             LOGGER.debug(" adding epc data")
             params += pack(">BHB", 9, edata.start, edata.size)
 
         self._send_packet(mt, mid, params)
         self._recieve_packet(mt, mid)
-        result = self.__shift_mandatory_int()
+        result = self.__response_shift_int()
         LOGGER.info(" read_tag response (0:ok) is %s", result)
         return result == 0 # 0 is ok!
 
@@ -260,33 +259,34 @@ class HRP(object):
                 self._recieve_packet(0x12, 0x00) #active data!
             except HDPFrameTimeoutError as e:
                 LOGGER.debug(" timeout!")
+                yield None
                 continue
             except (KeyboardInterrupt, SystemExit):
                 LOGGER.info (" read_tag break!")
                 break
             LOGGER.debug("read_tag rec %s", codecs.encode(self.__response, 'hex'))
-            epc = self.__shift_mandatory_var()
+            epc = self.__response_shift_var()
             LOGGER.info (" EPC(%i) = %s", len(epc), codecs.encode(epc, 'hex'))
-            tag_pc = self.__shift_mandatory_int(2)
-            LOGGER.info (" TAGPC = 0x%x = %i", tag_pc, tag_pc)
-            antenna = self.__shift_mandatory_int()
+            tag_pc = self.__response_shift_int(2)
+            LOGGER.info (" TAGPC = 0x%x %s", tag_pc, bin(tag_pc))
+            antenna = self.__response_shift_int()
             LOGGER.info(" antenna = %i", antenna)
-            extra = {'epc': epc, 'tag_pc':tag_pc, 'antenna':antenna}
+            tag = Tag(epc=epc, tag_pc=tag_pc, antenna=antenna)
             while len(self.__response):
-                pid = self.__shift_mandatory_int()
+                pid = self.__response_shift_int()
                 opt={
-                    1: ('rssi', self.__shift_mandatory_int),
-                    2: ('tag_result', self.__shift_mandatory_int),
-                    3: ('tid', self.__shift_mandatory_var),
-                    4: ('udata', self.__shift_mandatory_var),
-                    5: ('rdata', self.__shift_mandatory_var),
-                    6: ('sub_antenna', self.__shift_mandatory_int),
-                    7: ('utc', self.__shift_mandatory_fixed, 8),
-                    8: ('sequence', self.__shift_mandatory_int, 4),
-                    9: ('frequency', self.__shift_mandatory_int, 4),
-                    10: ('phase', self.__shift_mandatory_int),
-                    11: ('em_sensor', self.__shift_mandatory_fixed, 8),
-                    12: ('epc_data', self.__shift_mandatory_var),
+                    1: ('rssi', self.__response_shift_int),
+                    2: ('tag_result', self.__response_shift_int),
+                    3: ('tid', self.__response_shift_var),
+                    4: ('udata', self.__response_shift_var),
+                    5: ('rdata', self.__response_shift_var),
+                    6: ('sub_antenna', self.__response_shift_int),
+                    7: ('utc', self.__response_shift_fixed, 8),
+                    8: ('sequence', self.__response_shift_int, 4),
+                    9: ('frequency', self.__response_shift_int, 4),
+                    10: ('phase', self.__response_shift_int),
+                    11: ('em_sensor', self.__response_shift_fixed, 8),
+                    12: ('epc_data', self.__response_shift_var),
                 }
                 val = opt.get(pid, None)
                 if val is not None:
@@ -295,28 +295,37 @@ class HRP(object):
                     else:
                         temp = val[1]()
                     LOGGER.debug(" (%i) %s = %s", pid, val[0], temp)
-                    extra[val[0]] = temp
-            tid = extra.get('tid')
-            if tid:
-                LOGGER.info(" TID(%i) = %s", len(tid), codecs.encode(tid, 'hex'))
+                    tag.__dict__[val[0]] = temp
+            if tag.tid:
+                LOGGER.debug(" TID(%i) = %s", len(tag.tid), codecs.encode(tag.tid, 'hex'))
+            yield tag
 
-
-        self.reader_stop()
+        self.stop()
         self._recieve_packet(0x12, 0x01) #tag read finish reason!
 
     @log_call(logging.INFO)
-    def reader_stop(self):
-        """ stop command AA02FF"""
+    def restart(self):
+        """ restart command AA02FF"""
+        mt = MT_CONFIG
+        mid = MID_CONFIG_RESTART_READER
+        self._send_packet(mt, mid)
+        self._disconnect_tcp() # no more commands issued
+
+    @log_call(logging.INFO)
+    def stop(self):
+        """ stop command AA02FF
+
+        """
         mt = MT_OPERATION
         mid = MID_OP_STOP_COMMAND
         self._send_packet(mt, mid)
         self._recieve_packet(mt, mid)
-        self.result = self.__shift_mandatory_int()
+        self.result = self.__response_shift_int()
         LOGGER.info(" stop response (0:ok) is %s", self.result)
         return self.result == 0 # 0 is ok!
 
     @log_call(logging.INFO)
-    def reader_band_region(self, new_region=None):
+    def band_region(self, new_region=None):
         """ get or set band command AA0205"""
         if new_region is None: #read!
             mt = MT_OPERATION
@@ -326,9 +335,9 @@ class HRP(object):
             mt = MT_OPERATION
             mid = MID_OP_CONFIGURE_READER_RF_FREQUENCY_BAND
             payload = pack("B", new_region)
-        self._send_packet(mt, mid)
+        self._send_packet(mt, mid, payload)
         self._recieve_packet(mt, mid)
-        self.result = self.__shift_mandatory_int()
+        self.result = self.__response_shift_int()
         if new_region is None: #read
             LOGGER.info(" Region: %s", RF_REGION[self.result])
             self.region = self.result
@@ -339,7 +348,7 @@ class HRP(object):
         return self.result == 0 # 0 is ok!
 
     @log_call(logging.INFO)
-    def reader_band_channels(self, channel_list=None, auto=True):
+    def band_channels(self, channel_list=None, auto=True):
         """ get or set band command AA0205"""
         chlist = RF_REGION_CHANNELS[self.region]
         if not channel_list: #read!
@@ -357,12 +366,12 @@ class HRP(object):
                     chstring += pack("B", ch)
             payload = pack(">BBH", int(auto), 1, len(chstring)) #pid=1
 
-        self._send_packet(mt, mid)
+        self._send_packet(mt, mid, payload)
         self._recieve_packet(mt, mid)
 
         if not channel_list: #read
-            self.auto = bool(self.__shift_mandatory_int())
-            channels = self.__shift_mandatory_var()
+            self.auto = bool(self.__response_shift_int())
+            channels = self.__response_shift_var()
 
             LOGGER.info(" Range: %s", "full (automatic)" if self.auto else "fixed from list")
             self.channels = [ _ord(ch) for ch in channels ]
@@ -374,18 +383,18 @@ class HRP(object):
             LOGGER.debug(" end ch")
             return self.channels
         #if write
-        self.result = self.__shift_mandatory_int()
+        self.result = self.__response_shift_int()
         LOGGER.info(" write band region response (0:ok) is %s", self.result)
         self.region = new_region
         return self.result == 0 # 0 is ok!
 
     @log_call(logging.INFO)
-    def reader_power(self, new_power=None, antennas=None):
+    def power(self, new_power=None, antennas=None):
         """ get or set reader power AA0202"""
         if new_power is None: #read!
             mt = MT_OPERATION
             mid = MID_OP_QUERY_READER_POWER
-
+            payload= b""
         else:
             mt = MT_OPERATION
             mid = MID_OP_CONFIGURE_READER_POWER
@@ -400,11 +409,39 @@ class HRP(object):
         self._recieve_packet(mt, mid)
         if new_power is None: #read
             while len(self.__response):
-                pid = self.__shift_mandatory_int()
-                apow = self.__shift_mandatory_int()
+                pid = self.__response_shift_int()
+                apow = self.__response_shift_int()
                 LOGGER.info(" Antenna#%i = %i dBm", pid, apow)
             return apow #TODO catch error
         #if write
-        self.result = self.__shift_mandatory_int()
+        self.result = self.__response_shift_int()
         LOGGER.info(" write antenna power response (0:ok) is %s", self.result)
+        return self.result == 0 # 0 is ok!
+
+    @log_call(logging.INFO)
+    def tag_filter(self, new_filter_time=None, new_RSSI_threshold=None):
+        """ get or set reader tag upload params AA0209"""
+        if new_filter_time is None and new_RSSI_threshold is None: #read!
+            mt = MT_OPERATION
+            mid = MID_OP_QUERY_TAG_UPLOAD_PARAMETERS
+            payload= b""
+        else:
+            mt = MT_OPERATION
+            mid = MID_OP_CONFIGURE_TAG_UPLOAD_PARAMETERS
+            payload = b""
+            if new_filter_time is not None:
+                payload += pack(">BH",1, new_filter_time)
+            if new_RSSI_threshold is not None:
+                payload += pack(">BB",2, new_RSSI_threshold)
+        self._send_packet(mt, mid, payload)
+        self._recieve_packet(mt, mid)
+        if new_filter_time is None: #read
+            while len(self.__response):
+                filter_time = self.__response_shift_int(2)
+                RSSI_threshold = self.__response_shift_int()
+                LOGGER.info(" filter %i x 10ms, RSSI th = %i dBm", filter_time, RSSI_threshold)
+            return filter_time, RSSI_threshold
+        #if write
+        self.result = self.__response_shift_int()
+        LOGGER.info(" write tag_filter response (0:ok) is %s", self.result)
         return self.result == 0 # 0 is ok!
