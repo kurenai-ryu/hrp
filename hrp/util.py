@@ -22,7 +22,7 @@ def log_call(level=logging.DEBUG):
         @functools.wraps(fn)
         def inner(*args, **kwargs):
             if level != logging.DEBUG:
-                LOGGER.log(logging.DEBUG, "\n") # space
+                LOGGER.log(logging.DEBUG, " ") # space
             res = inspect.getcallargs(fn, *args, **kwargs)
             #print res debug
             LOGGER.log(level, "CALL hrp.%s(%s)",fn.__name__, ", ".join(["{}={}".format(k,res[k]) for k in res if k != 'self']))

@@ -14,7 +14,7 @@ from hrp.tag import TidReadParameter, TagAddress, MatchParameter
 
 try:
     conn = HRP(ip='192.168.1.116', port=9090, ommit_ping=False, timeout=10)
-    #sconn.setLogLevelDebug() # enable for debug information
+    conn.setLogLevelDebug() # enable for debug information
     print ("Connecting")
     conn.connect()
     filter_time, RSSI_threshold = conn.tag_filter()
@@ -31,6 +31,8 @@ try:
         if tag is None:
             print ("Time out, {}".format(counter))
             counter += 1
+            if counter > 10:
+                conn.end_read_tag = True
         else: #proper tag
             print (tag)
     conn.tag_filter(filter_time, RSSI_threshold)

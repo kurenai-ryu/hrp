@@ -40,7 +40,6 @@ class HRP(object):
         self.region = 0 # GB1 = 920~925 ???
         self.auto = False # assumed
         self.channels = [] # empty
-
     @log_call(logging.INFO)
     def __test_ping(self):
         """
