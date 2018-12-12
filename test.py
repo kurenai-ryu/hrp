@@ -1,22 +1,27 @@
 #!/usr/bin/env python2
-# # -*- coding: utf-8 -*-
-import sys
+# -*- coding: utf-8 -*-
+# pylint: disable-msg=R0201
+
+"""
+unit tests
+"""
+
+#import sys
 import codecs
-import logging
 
 import datetime
 import unittest
-from mock import patch, Mock, MagicMock
+from mock import patch #, Mock, MagicMock
 
-
+from hrp import HRP
+from hrp.exception import HRPNetworkError
 
 try:
     unittest.TestCase.assertRaisesRegex
 except AttributeError:
     unittest.TestCase.assertRaisesRegex = unittest.TestCase.assertRaisesRegexp
 
-from hrp import HRP
-from hrp.exception import HDPNetworkError
+
 
 BASIC_CONNECT = [ # up to reader_band_channels
     #header: query_reader_info
@@ -38,33 +43,50 @@ BASIC_CONNECT = [ # up to reader_band_channels
 
 
 class HRPTest(unittest.TestCase):
+    """ HRP unit testing """
     def setup(self):
+        """ init test """
         pass
 
     def tearDown(self):
-        HRP.setLogLevel()# reset
-        pass
+        """ clear test """
+        HRP.set_log_level()# reset
 
     @patch('hrp.hrp.subprocess')
     def test_incorrect_ping(self, subprocess):
-        #HRP.setLogLevel(logging.DEBUG)
+        """
+
+        test for incorrect ping
+
+        """
+        #HRP.set_log_level_debug()
         subprocess.call.return_value = 1
         conn = HRP('192.168.1.116')
-        self.assertRaisesRegex(HDPNetworkError,"can't reach reader", conn.connect)
+        self.assertRaisesRegex(HRPNetworkError, "can't reach reader", conn.connect)
 
     @patch('hrp.hrp.socket')
     @patch('hrp.hrp.subprocess')
     def test_correct_ping(self, subprocess, socket):
-        #HRP.setLogLevel(logging.DEBUG)
+        """
+
+        test for correct ping, but missing tcp connection
+
+        """
+        #HRP.set_log_level_debug()
         subprocess.call.return_value = 0
         socket.return_value.connect_ex.return_value = 1
         conn = HRP('192.168.1.116')
-        self.assertRaisesRegex(HDPNetworkError,"can't connect tcp reader", conn.connect)
+        self.assertRaisesRegex(HRPNetworkError, "can't connect tcp reader", conn.connect)
 
     @patch('hrp.hrp.socket')
     @patch('hrp.hrp.subprocess')
     def test_correct_tcp(self, subprocess, socket):
-        #HRP.setLogLevel(logging.DEBUG)
+        """
+
+        Test for correct tcp connection
+
+        """
+        #HRP.set_log_level_debug()
         subprocess.call.return_value = 0
         socket.return_value.connect_ex.return_value = 0
         socket.return_value.recv.side_effect = BASIC_CONNECT
@@ -77,7 +99,12 @@ class HRPTest(unittest.TestCase):
     @patch('hrp.hrp.socket')
     @patch('hrp.hrp.subprocess')
     def test_correct_connect(self, subprocess, socket):
-        #HRP.setLogLevel(logging.DEBUG)
+        """
+
+        test for correct tco and initial data reading
+
+        """
+        #HRP.set_log_level_debug()
         subprocess.call.return_value = 0
         socket.return_value.connect_ex.return_value = 0
         socket.return_value.recv.side_effect = BASIC_CONNECT
@@ -93,13 +120,18 @@ class HRPTest(unittest.TestCase):
     @patch('hrp.hrp.socket')
     @patch('hrp.hrp.subprocess')
     def test_command_send(self, subprocess, socket):
-        #HRP.setLogLevel(logging.DEBUG)
+        """
+
+        test send packets
+
+        """
+        #HRP.set_log_level_debug()
         subprocess.call.return_value = 0
         socket.return_value.connect_ex.return_value = 0
         socket.return_value.recv.side_effect = BASIC_CONNECT
         conn = HRP('192.168.1.116')
         conn.connect()
-        conn._send_packet(5,5) # TEST,swr detect,""
+        conn._send_packet(5, 5) # TEST,swr detect,""
         socket.return_value.send.assert_called_with(codecs.decode("AA050500004444",'hex'))
         conn._send_packet(2, 255) # OP, stop command
         socket.return_value.send.assert_called_with(codecs.decode("AA02FF0000A40F",'hex'))

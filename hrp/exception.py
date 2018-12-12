@@ -1,14 +1,22 @@
 #!/usr/bin/env python2
 # # -*- coding: utf-8 -*-
 
-class HDPBaseError(Exception):
+"""
+HRP Exception types
+"""
+
+class HRPBaseError(Exception):
+    """Base Error for HRP"""
     pass
 
-class HDPNetworkError(HDPBaseError):
+class HRPNetworkError(HRPBaseError):
+    """Network Error for HRP"""
     pass
 
-class HDPFrameError(HDPBaseError):
+class HRPFrameError(HRPBaseError):
+    """Frame Error for HRP"""
     pass
 
-class HDPFrameTimeoutError(HDPFrameError):
+class HRPFrameTimeoutError(HRPFrameError):
+    """Timeout while waiting"""
     pass

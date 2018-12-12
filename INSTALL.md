@@ -5,7 +5,7 @@
    ```python
    import sys
    import os
-   sys.path.insert(1,os.path.abspath("./pyzk"))
+   sys.path.insert(1,os.path.abspath("./hrp"))
    from hrp import HRP
    ```
 

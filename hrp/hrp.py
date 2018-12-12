@@ -1,32 +1,66 @@
 #!/usr/bin/env python2
-# # -*- coding: utf-8 -*-
-import subprocess, platform
+# -*- coding: utf-8 -*-
+"""
+Modulo de la clase HRP
+"""
+import subprocess
+import platform
 import logging
-from socket import AF_INET, SOCK_STREAM, socket, timeout
+from socket import AF_INET, SOCK_STREAM, socket, timeout as socket_timeout
 from struct import pack, unpack
 import codecs
 import datetime
 
+from . import exception
+from . import const
 from .tag import TidReadParameter, TagAddress, MatchParameter
-from .exception import *
 from .util import crc16, _ord, LOGGER, log_call
 from .tag import Tag
-from .const import *
 
 
 class HRP(object):
-    """ clase para conexión Clou/Hopeland Hopeland Reader Protocol - HRP """
+    """clase para conexión Clou/Hopeland Hopeland Reader Protocol - HRP"""
+    # pylint: disable=too-many-instance-attributes
     @staticmethod
-    def setLogLevel(level=logging.WARNING):
+    def set_log_level(level=logging.WARNING):
+        """
+        Establece el nivel de bitacora para el LOGGER (mínimo logging.WARNING)
+
+        Parameters
+        ----------
+        level :
+            Default value = logging.WARNING)
+
+        Returns
+        -------
+
+
+        """
         LOGGER.setLevel(level)
 
     @staticmethod
-    def setLogLevelDebug():
+    def set_log_level_debug():
+        """Establece el nivel de bitácora en DEBUG"""
         LOGGER.setLevel(logging.DEBUG)
 
     def __init__(self, ip='192.168.1.116', port=9090, ommit_ping=False, timeout=10):
-        """ init """
+        """
+        inicialización
+
+        Parameters
+        ----------
+        ip :
+             (Default value = '192.168.1.116')
+        port :
+             (Default value = 9090)
+        ommit_ping :
+             (Default value = False)
+        timeout :
+             (Default value = 10)
+
+        """
         self.__ommit_ping = ommit_ping
+        self.__response = None
         self.address = (ip, port)
         self.timeout = timeout
         self.socket = None
@@ -40,25 +74,40 @@ class HRP(object):
         self.region = 0 # GB1 = 920~925 ???
         self.auto = False # assumed
         self.channels = [] # empty
+        self.result = None
     @log_call(logging.INFO)
     def __test_ping(self):
         """
-        Returns True if host responds to a ping request
+        test with ping
+
+        Returns
+        -------
+            True if host responds to a ping request
         """
         LOGGER.info(" ping to %s", self.address[0])
         # Ping parameters as function of OS
-        ping_str = "-n 1" if  platform.system().lower()=="windows" else "-c 1 -W 5"
+        ping_str = "-n 1" if  platform.system().lower() == "windows" else "-c 1 -W 5"
         args = "ping " + " " + ping_str + " " + self.address[0] #ip
-        need_sh = False if  platform.system().lower()=="windows" else True
+        need_sh = False if  platform.system().lower() == "windows" else True
         # Ping
         LOGGER.debug(args)
         return subprocess.call(args,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            shell=need_sh) == 0
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE,
+                               shell=need_sh) == 0
     @log_call()
     def _connect_tcp(self, timeout):
-        """ connect_tcp """
+        """
+        connect_tcp
+
+        Parameters
+        ----------
+        timeout : in seconds
+
+        Returns
+        -------
+            True if connected!
+        """
         self.socket = socket(AF_INET, SOCK_STREAM)
         self.socket.settimeout(timeout)
         LOGGER.debug("begin tcp")
@@ -67,19 +116,35 @@ class HRP(object):
 
     @log_call()
     def _disconnect_tcp(self):
-        """ disconnect_tcp"""
+        """disconnect_tcp"""
         if self.socket:
             LOGGER.debug("closing tcp")
             self.socket.close()
             self.socket = None
 
     @log_call()
-    def _send_packet(self, mt=0, mid=0, payload=b""):
-        """ send_packet"""
+    def _send_packet(self, mtype=0, mid=0, payload=b""):
+        """
+        send_packet
+
+        Parameters
+        ----------
+        mtype : message type
+            Default value = 0)
+        mid : message id
+            Default value = 0)
+        payload : data to attach(params)
+            Default value = b"")
+
+        Returns
+        -------
+            number of bytes sended
+
+        """
         # rs485 should be 0 because this is for tcp connection
         # if so, it needs a extra byte for address!!!
         # af should be 0 always, because we are sending the packet
-        frame = pack(">BBBH",0xAA,mt, mid, len(payload))
+        frame = pack(">BBBH", 0xAA, mtype, mid, len(payload))
         frame += payload #could be empty?
         LOGGER.debug(" p.frame %s", codecs.encode(frame, 'hex'))
         checksum = crc16(frame[1:])
@@ -88,38 +153,51 @@ class HRP(object):
         #send!
         sent = self.socket.send(frame)
         LOGGER.debug("frame len: %i, sent: %i", len(frame), sent)
-        #TODO: resend on missmatch?
+        #resend on missmatch?
         return sent
 
     @log_call()
-    def _recieve_packet(self, mt=0, mid=0):
-        """ recieve_packet"""
+    def _recieve_packet(self, mtype=0, mid=0):
+        """
+        recieve_packet
+
+        Parameters
+        ----------
+        mtype :
+            Default value = 0)
+        mid :
+            Default value = 0)
+
+        Returns
+        -------
+            None pero publica en self.__response
+
+        """
         try:
             header = self.socket.recv(5)
-        except timeout:
-            raise HDPFrameTimeoutError("header timed out!")
-        #TODO: catch test of more bytes
+        except socket_timeout:
+            raise exception.HRPFrameTimeoutError("header timed out!")
         LOGGER.debug(" p.header %s", codecs.encode(header, 'hex'))
-        fh, h_mt, h_mid, dlen = unpack(">BBBH", header)
-        if fh != 0xAA:
-            raise HDPFrameError("Inconsistent frame header")
+        fhead, h_mtype, h_mid, dlen = unpack(">BBBH", header)
+        if fhead != 0xAA:
+            raise exception.HRPFrameError("Inconsistent frame header")
         try:
             datac = self.socket.recv(dlen + 2) #data + Checksum
-        except timeout:
-            raise HDPFrameError("data[{}] timed out!".format(dlen+2))
+        except socket_timeout:
+            raise exception.HRPFrameError("data[{}] timed out!".format(dlen+2))
         LOGGER.debug("     data + check   %s", codecs.encode(datac, 'hex'))
         #todo check checksum? datac[-2:]
-        if mt != h_mt or mid != h_mid:
-            raise HDPFrameError("Not corresponding response")
+        if mtype != h_mtype or mid != h_mid:
+            raise exception.HRPFrameError("Not corresponding response")
         self.__response = datac[:-2]
 
     @log_call(logging.INFO)
     def connect(self):
-        """ connect"""
+        """connect"""
         if not self.__ommit_ping and not self.__test_ping():
-            raise HDPNetworkError("can't reach reader (ping {})".format(self.address[0]))
+            raise exception.HRPNetworkError("can't reach reader (ping {})".format(self.address[0]))
         if not self._connect_tcp(self.timeout):
-            raise HDPNetworkError("can't connect tcp reader ({})".format(self.address[0]))
+            raise exception.HRPNetworkError("can't connect tcp reader ({})".format(self.address[0]))
         LOGGER.info("connecting...")
         self.reader_info()
         self.reader_ability()
@@ -130,26 +208,46 @@ class HRP(object):
 
     @log_call(logging.INFO)
     def disconnect(self):
-        """ connect"""
+        """connect"""
         #add extra commands...
         if self.socket:
             self.stop()
         self._disconnect_tcp()
 
     def __response_shift_int(self, size=1):
-        """ mandatory is without pid"""
+        """mandatory is without pid
+
+        Parameters
+        ----------
+        size :
+             (Default value = 1)
+
+        Returns
+        -------
+
+        """
         val, = unpack(">I", self.__response[:size].rjust(4, b'\x00'))
         self.__response = self.__response[size:]
         return val
 
     def __response_shift_fixed(self, size=1):
-        """ mandatory is without pid"""
+        """mandatory is without pid
+
+        Parameters
+        ----------
+        size :
+             (Default value = 1)
+
+        Returns
+        -------
+
+        """
         val, = self.__response[:size]
         self.__response = self.__response[size:]
         return val
 
     def __response_shift_var(self):
-        """ mandatory  variable"""
+        """mandatory  variable"""
         size, = unpack(">H", self.__response[:2])
         self.__response = self.__response[2:]
         val = self.__response[:size]
@@ -157,18 +255,18 @@ class HRP(object):
         return val
 
     def __response_shift_version(self):
-        """ mandatory is without pid"""
+        """mandatory is without pid"""
         val = unpack(">HBB", self.__response[:4])
         self.__response = self.__response[4:]
         return val
 
     @log_call(logging.INFO)
     def reader_info(self):
-        """ query reader info AA0100"""
-        mt = MT_CONFIG
-        mid = MID_CONFIG_QUERY_READER_INFORMATION
-        self._send_packet(mt, mid)
-        self._recieve_packet(mt, mid)
+        """query reader info AA0100"""
+        mtype = const.MT_CONFIG
+        mid = const.MID_CONFIG_QUERY_READER_INFORMATION
+        self._send_packet(mtype, mid)
+        self._recieve_packet(mtype, mid)
         #Mandatory fixed
         major, minor, patch = self.__response_shift_version()
         self.version = "{}.{}.{}".format(major, minor, patch)
@@ -181,11 +279,11 @@ class HRP(object):
 
     @log_call(logging.INFO)
     def reader_ability(self):
-        """ query reader hability AA0200"""
-        mt = MT_OPERATION
-        mid = MID_OP_QUERY_READER_RFID_ABILITY
-        self._send_packet(mt, mid)
-        self._recieve_packet(mt, mid)
+        """query reader hability AA0200"""
+        mtype = const.MT_OPERATION
+        mid = const.MID_OP_QUERY_READER_RFID_ABILITY
+        self._send_packet(mtype, mid)
+        self._recieve_packet(mtype, mid)
         #Mandatory fixed
         self.min_power = self.__response_shift_int()
         self.max_power = self.__response_shift_int()
@@ -193,35 +291,68 @@ class HRP(object):
         LOGGER.info(" min_pow:%i, max_pow:%i", self.min_power, self.max_power)
         LOGGER.info(" antennas:%i", self.antennas)
         #parse FReq list?
-        list = self.__response_shift_var() # TODO: parse
-        for fl in list:
-            fl = _ord(fl)
-            LOGGER.info(" supported bands: [%i] = %s", fl, RF_REGION[fl])
+        bands = self.__response_shift_var()
+        for band in bands:
+            band = _ord(band)
+            LOGGER.info(" supported bands: [%i] = %s", band, const.RF_REGION[band])
         #parse protocol list?
         protocols = self.__response_shift_var()
-        for fl in protocols:
-            fl = _ord(fl)
-            LOGGER.info(" supported protocols: [%i] = %s", fl, RF_PROTOCOL[fl])
+        for proto in protocols:
+            proto = _ord(proto)
+            LOGGER.info(" supported protocols: [%i] = %s", proto, const.RF_PROTOCOL[proto])
+        return bands, protocols
 
     @log_call()
-    def init_read_tag(self, antennas=1, match=None, tid=None, udata=None, rdata=None, password=None, monza=False, micron=False, em_sensor=False, edata=None):
-        """ read tag command AA0210"""
-        mt = MT_OPERATION
-        mid = MID_OP_READ_EPC_TAG
+    def init_read_tag(self, antennas=1, match=None, tid=None,
+                      udata=None, rdata=None, password=None,
+                      monza=False, micron=False, em_sensor=False, edata=None):
+        """read tag command AA0210
+
+        Parameters
+        ----------
+        antennas :
+            Default value = 1)
+        match :
+            Default value = None)
+        tid :
+            Default value = None)
+        udata :
+            Default value = None)
+        rdata :
+            Default value = None)
+        password :
+            Default value = None)
+        monza :
+            Default value = False)
+        micron :
+            Default value = False)
+        em_sensor :
+            Default value = False)
+        edata :
+            Default value = None)
+
+        Returns
+        -------
+
+
+        """
+        # pylint: disable-msg=R0914,too-many-arguments
+        mtype = const.MT_OPERATION
+        mid = const.MID_OP_READ_EPC_TAG
         LOGGER.debug(" read antennas %i", antennas)
         params = pack(">BB", antennas, 1) #fixed inventory - continous read
-        if match is not None and type(match) is MatchParameter:
+        if match is not None and isinstance(match, MatchParameter):
             LOGGER.debug("adding match %i", match.area)
-            params += pack(">BBHB", 1, match.area, match.start,len(match.content))
+            params += pack(">BBHB", 1, match.area, match.start, len(match.content))
             params += match.content
-        if tid is not None and type(tid) is TidReadParameter:
+        if tid is not None and isinstance(tid, TidReadParameter):
             LOGGER.debug(" adding tid %s", tid)
             # tid[0] 0-> variable up to [1], 1-> fixed read [1] words
             params += pack(">BBB", 2, tid.fixed, tid.size)
-        if udata is not None and type(udata) is TagAddress:
+        if udata is not None and isinstance(udata, TagAddress):
             LOGGER.debug(" adding udata")
             params += pack(">BHB", 3, udata.start, udata.size)
-        if rdata is not None and type(rdata) is TagAddress:
+        if rdata is not None and isinstance(rdata, TagAddress):
             LOGGER.debug(" adding rdata")
             params += pack(">BHB", 4, rdata.start, rdata.size)
         if password is not None:
@@ -236,19 +367,51 @@ class HRP(object):
         if em_sensor:
             LOGGER.debug(" adding EM sensor data")
             params += pack(">BB", 8, 1) #fixed 1
-        if edata is not None and type(edata) is TagAddress:
+        if edata is not None and isinstance(edata, TagAddress):
             LOGGER.debug(" adding epc data")
             params += pack(">BHB", 9, edata.start, edata.size)
 
-        self._send_packet(mt, mid, params)
-        self._recieve_packet(mt, mid)
+        self._send_packet(mtype, mid, params)
+        self._recieve_packet(mtype, mid)
         result = self.__response_shift_int()
         LOGGER.info(" read_tag response (0:ok) is %s", result)
         return result == 0 # 0 is ok!
 
     @log_call(logging.INFO)
     def read_tag(self, antennas=1, match=None, tid=None, udata=None, rdata=None, password=None, monza=False, micron=False, em_sensor=False, edata=None):
-        if not self.init_read_tag(antennas, match, tid, udata, rdata, password, monza, micron, em_sensor, edata):
+        """
+        Python generator for reading tags...
+        Parameters
+        ----------
+        antennas :
+            Default value = 1)
+        match :
+            Default value = None)
+        tid :
+            Default value = None)
+        udata :
+            Default value = None)
+        rdata :
+            Default value = None)
+        password :
+            Default value = None)
+        monza :
+            Default value = False)
+        micron :
+            Default value = False)
+        em_sensor :
+            Default value = False)
+        edata :
+            Default value = None)
+
+        Yield
+        -------
+            the response as a Tag Object or None if timeout
+
+        """
+        # pylint: disable-msg=R0914,too-many-arguments
+        if not self.init_read_tag(antennas, match, tid, udata, rdata, password,
+                                  monza, micron, em_sensor, edata):
             LOGGER.warning("Can't read tags")
             return
         self.end_read_tag = False
@@ -256,24 +419,24 @@ class HRP(object):
             LOGGER.debug(" waiting message...")
             try:
                 self._recieve_packet(0x12, 0x00) #active data!
-            except HDPFrameTimeoutError as e:
+            except exception.HRPFrameTimeoutError:
                 LOGGER.debug(" timeout!")
                 yield None
                 continue
             except (KeyboardInterrupt, SystemExit):
-                LOGGER.info (" read_tag break!")
+                LOGGER.info(" read_tag break!")
                 break
             LOGGER.debug("read_tag rec %s", codecs.encode(self.__response, 'hex'))
             epc = self.__response_shift_var()
-            LOGGER.info (" EPC(%i) = %s", len(epc), codecs.encode(epc, 'hex'))
+            LOGGER.info(" EPC(%i) = %s", len(epc), codecs.encode(epc, 'hex'))
             tag_pc = self.__response_shift_int(2)
-            LOGGER.info (" TAGPC = 0x%x %s", tag_pc, bin(tag_pc))
+            LOGGER.info(" TAGPC = 0x%x %s", tag_pc, bin(tag_pc))
             antenna = self.__response_shift_int()
             LOGGER.info(" antenna = %i", antenna)
             tag = Tag(epc=epc, tag_pc=tag_pc, antenna=antenna)
-            while len(self.__response):
+            while self.__response:
                 pid = self.__response_shift_int()
-                opt={
+                opt = {
                     1: ('rssi', self.__response_shift_int),
                     2: ('tag_result', self.__response_shift_int),
                     3: ('tid', self.__response_shift_var),
@@ -304,41 +467,50 @@ class HRP(object):
 
     @log_call(logging.INFO)
     def restart(self):
-        """ restart command AA02FF"""
-        mt = MT_CONFIG
-        mid = MID_CONFIG_RESTART_READER
-        self._send_packet(mt, mid)
+        """restart command AA02FF"""
+        mtype = const.MT_CONFIG
+        mid = const.MID_CONFIG_RESTART_READER
+        self._send_packet(mtype, mid)
         self._disconnect_tcp() # no more commands issued
 
     @log_call(logging.INFO)
     def stop(self):
-        """ stop command AA02FF
-
-        """
-        mt = MT_OPERATION
-        mid = MID_OP_STOP_COMMAND
-        self._send_packet(mt, mid)
-        self._recieve_packet(mt, mid)
+        """stop command AA02FF"""
+        mtype = const.MT_OPERATION
+        mid = const.MID_OP_STOP_COMMAND
+        self._send_packet(mtype, mid)
+        self._recieve_packet(mtype, mid)
         self.result = self.__response_shift_int()
         LOGGER.info(" stop response (0:ok) is %s", self.result)
         return self.result == 0 # 0 is ok!
 
     @log_call(logging.INFO)
     def band_region(self, new_region=None):
-        """ get or set band command AA0205"""
+        """get or set band command AA0205
+
+        Parameters
+        ----------
+        new_region :
+            Default value = None)
+
+        Returns
+        -------
+
+
+        """
         if new_region is None: #read!
-            mt = MT_OPERATION
-            mid = MID_OP_QUERY_READER_RF_FREQUENCY_BAND
-            payload= b""
+            mtype = const.MT_OPERATION
+            mid = const.MID_OP_QUERY_READER_RF_FREQUENCY_BAND
+            payload = b""
         else:
-            mt = MT_OPERATION
-            mid = MID_OP_CONFIGURE_READER_RF_FREQUENCY_BAND
+            mtype = const.MT_OPERATION
+            mid = const.MID_OP_CONFIGURE_READER_RF_FREQUENCY_BAND
             payload = pack("B", new_region)
-        self._send_packet(mt, mid, payload)
-        self._recieve_packet(mt, mid)
+        self._send_packet(mtype, mid, payload)
+        self._recieve_packet(mtype, mid)
         self.result = self.__response_shift_int()
         if new_region is None: #read
-            LOGGER.info(" Region: %s", RF_REGION[self.result])
+            LOGGER.info(" Region: %s", const.RF_REGION[self.result])
             self.region = self.result
             return self.result
         #if write
@@ -348,98 +520,136 @@ class HRP(object):
 
     @log_call(logging.INFO)
     def band_channels(self, channel_list=None, auto=True):
-        """ get or set band command AA0205"""
-        chlist = RF_REGION_CHANNELS[self.region]
+        """get or set band command AA0205
+
+        Parameters
+        ----------
+        channel_list :
+            Default value = None)
+        auto :
+            Default value = True)
+
+        Returns
+        -------
+
+
+        """
+        chlist = const.RF_REGION_CHANNELS[self.region]
         if not channel_list: #read!
-            mt = MT_OPERATION
-            mid = MID_OP_QUERY_READER_WORKING_FREQUENCY
-            payload= b""
+            mtype = const.MT_OPERATION
+            mid = const.MID_OP_QUERY_READER_WORKING_FREQUENCY
+            payload = b""
         else:
-            mt = MT_OPERATION
-            mid = MID_OP_CONFIGURE_READER_WORKING_FREQUENCY
+            mtype = const.MT_OPERATION
+            mid = const.MID_OP_CONFIGURE_READER_WORKING_FREQUENCY
             chstring = b""
-            for ch in channel_list:
-                if ch >=len(chlist):
-                    LOGGER.warn(" Invalid channel %i ommiting!", ch)
+            for channel in channel_list:
+                if channel >= len(chlist):
+                    LOGGER.warn(" Invalid channel %i ommiting!", channel)
                 else:
-                    chstring += pack("B", ch)
+                    chstring += pack("B", channel)
             payload = pack(">BBH", int(auto), 1, len(chstring)) #pid=1
 
-        self._send_packet(mt, mid, payload)
-        self._recieve_packet(mt, mid)
+        self._send_packet(mtype, mid, payload)
+        self._recieve_packet(mtype, mid)
 
         if not channel_list: #read
             self.auto = bool(self.__response_shift_int())
             channels = self.__response_shift_var()
 
             LOGGER.info(" Range: %s", "full (automatic)" if self.auto else "fixed from list")
-            self.channels = [ _ord(ch) for ch in channels ]
-            for ch in self.channels:
-                if ch >= len(chlist):
-                    LOGGER.warn(" Invalid channel %i", ch)
+            self.channels = [_ord(channel) for channel in channels]
+            for channel in self.channels:
+                if channel >= len(chlist):
+                    LOGGER.warn(" Invalid channel %i", channel)
                 else:
-                    LOGGER.info(" Channel: %i, %.2f MHz",ch,chlist[ch])
+                    LOGGER.info(" Channel: %i, %.2f MHz", channel, chlist[channel])
             LOGGER.debug(" end ch")
             return self.channels
         #if write
         self.result = self.__response_shift_int()
         LOGGER.info(" write band region response (0:ok) is %s", self.result)
-        self.region = new_region
         return self.result == 0 # 0 is ok!
 
     @log_call(logging.INFO)
     def power(self, new_power=None, antennas=None):
-        """ get or set reader power AA0202"""
+        """get or set reader power AA0202
+
+        Parameters
+        ----------
+        new_power :
+            Default value = None)
+        antennas :
+            Default value = None)
+
+        Returns
+        -------
+
+
+        """
         if new_power is None: #read!
-            mt = MT_OPERATION
-            mid = MID_OP_QUERY_READER_POWER
-            payload= b""
+            mtype = const.MT_OPERATION
+            mid = const.MID_OP_QUERY_READER_POWER
+            payload = b""
         else:
-            mt = MT_OPERATION
-            mid = MID_OP_CONFIGURE_READER_POWER
+            mtype = const.MT_OPERATION
+            mid = const.MID_OP_CONFIGURE_READER_POWER
             payload = b""
             if antennas is None:
                 antennas = self.antennas
-            if type(antennas) is int and antennas < 4:
+            if isinstance(antennas, int) and antennas < 4:
                 antennas = range(1, antennas + 1)
             for ant in antennas:
-                payload += pack(">BB",ant, new_power)
-        self._send_packet(mt, mid)
-        self._recieve_packet(mt, mid)
+                payload += pack(">BB", ant, new_power)
+        self._send_packet(mtype, mid)
+        self._recieve_packet(mtype, mid)
         if new_power is None: #read
-            while len(self.__response):
+            while self.__response:
                 pid = self.__response_shift_int()
                 apow = self.__response_shift_int()
                 LOGGER.info(" Antenna#%i = %i dBm", pid, apow)
-            return apow #TODO catch error
+            return apow # catch error
         #if write
         self.result = self.__response_shift_int()
         LOGGER.info(" write antenna power response (0:ok) is %s", self.result)
         return self.result == 0 # 0 is ok!
 
     @log_call(logging.INFO)
-    def tag_filter(self, new_filter_time=None, new_RSSI_threshold=None):
-        """ get or set reader tag upload params AA0209"""
-        if new_filter_time is None and new_RSSI_threshold is None: #read!
-            mt = MT_OPERATION
-            mid = MID_OP_QUERY_TAG_UPLOAD_PARAMETERS
-            payload= b""
+    def tag_filter(self, new_filter_time=None, new_rssi_threshold=None):
+        """get or set reader tag upload params AA0209
+
+        Parameters
+        ----------
+        new_filter_time :
+            Default value = None)
+        new_rssi_threshold :
+            Default value = None)
+
+        Returns
+        -------
+
+
+        """
+        if new_filter_time is None and new_rssi_threshold is None: #read!
+            mtype = const.MT_OPERATION
+            mid = const.MID_OP_QUERY_TAG_UPLOAD_PARAMETERS
+            payload = b""
         else:
-            mt = MT_OPERATION
-            mid = MID_OP_CONFIGURE_TAG_UPLOAD_PARAMETERS
+            mtype = const.MT_OPERATION
+            mid = const.MID_OP_CONFIGURE_TAG_UPLOAD_PARAMETERS
             payload = b""
             if new_filter_time is not None:
-                payload += pack(">BH",1, new_filter_time)
-            if new_RSSI_threshold is not None:
-                payload += pack(">BB",2, new_RSSI_threshold)
-        self._send_packet(mt, mid, payload)
-        self._recieve_packet(mt, mid)
+                payload += pack(">BH", 1, new_filter_time)
+            if new_rssi_threshold is not None:
+                payload += pack(">BB", 2, new_rssi_threshold)
+        self._send_packet(mtype, mid, payload)
+        self._recieve_packet(mtype, mid)
         if new_filter_time is None: #read
-            while len(self.__response):
+            while self.__response:
                 filter_time = self.__response_shift_int(2)
-                RSSI_threshold = self.__response_shift_int()
-                LOGGER.info(" filter %i x 10ms, RSSI th = %i dBm", filter_time, RSSI_threshold)
-            return filter_time, RSSI_threshold
+                rssi_threshold = self.__response_shift_int()
+                LOGGER.info(" filter %i x 10ms, RSSI th = %i dBm", filter_time, rssi_threshold)
+            return filter_time, rssi_threshold
         #if write
         self.result = self.__response_shift_int()
         LOGGER.info(" write tag_filter response (0:ok) is %s", self.result)

@@ -1,5 +1,9 @@
 #!/usr/bin/env python2
-# # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
+
+"""
+constants and fixed tables
+"""
 
 PCW_RS485 = 0x20
 PCW_ACTIVE = 0x10

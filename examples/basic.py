@@ -1,5 +1,5 @@
 #!/usr/bin/env python2
-# # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import sys
 import os
 import traceback
@@ -14,7 +14,7 @@ from hrp.tag import TidReadParameter, TagAddress, MatchParameter
 
 try:
     conn = HRP(ip='192.168.1.116', port=9090, ommit_ping=False, timeout=10)
-    conn.setLogLevelDebug() # enable for debug information
+    conn.set_log_level_debug() # enable for debug information
     print ("Connecting")
     conn.connect()
     filter_time, RSSI_threshold = conn.tag_filter()
