@@ -17,10 +17,11 @@ logging.addLevelName(logging.WARNING, "\033[1;33m%s\033[1;0m" % "WRN")
 logging.addLevelName(logging.ERROR, "\033[1;41m%s\033[1;0m" % "ERR")
 LOGGER = logging.getLogger('hrp')
 LOGGER.setLevel(logging.WARNING)
-_LOGH = logging.StreamHandler()
-_LOGH.setFormatter(logging.Formatter(
+if not LOGGER.handlers:
+    _LOGH = logging.StreamHandler()
+    _LOGH.setFormatter(logging.Formatter(
     '\033[1;30m%(asctime)s\033[1;0m - %(name)s - %(levelname)s - %(message)s'))
-LOGGER.addHandler(_LOGH)
+    LOGGER.addHandler(_LOGH)
 
 def log_call(level=logging.DEBUG):
     """

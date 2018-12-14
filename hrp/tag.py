@@ -30,7 +30,7 @@ RESULT = { # text version
 
 TidReadParameter = namedtuple('TidReadParameter', 'fixed, size')
 TagAddress = namedtuple('TagAddress', 'start, size')
-MatchParameter = namedtuple('MatchParameter', 'area, start, length, content')
+MatchParameter = namedtuple('MatchParameter', 'area, start, content')
 
 
 class Tag(object):

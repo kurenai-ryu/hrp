@@ -461,9 +461,7 @@ class HRP(object):
             if tag.tid:
                 LOGGER.debug(" TID(%i) = %s", len(tag.tid), codecs.encode(tag.tid, 'hex'))
             yield tag
-
         self.stop()
-        self._recieve_packet(0x12, 0x01) #tag read finish reason!
 
     @log_call(logging.INFO)
     def restart(self):
@@ -482,6 +480,15 @@ class HRP(object):
         self._recieve_packet(mtype, mid)
         self.result = self.__response_shift_int()
         LOGGER.info(" stop response (0:ok) is %s", self.result)
+        try:
+            self.socket.settimeout(1) #test!
+            self._recieve_packet(0x12, 0x01) #tag read finish reason!
+            LOGGER.debug(" finish reason...ok!")
+        except exception.HRPFrameTimeoutError:
+            LOGGER.debug(" no finish packet...")
+            pass
+        finally:
+            self.socket.settimeout(self.timeout)
         return self.result == 0 # 0 is ok!
 
     @log_call(logging.INFO)

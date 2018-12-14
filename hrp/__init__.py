@@ -9,4 +9,4 @@ from .hrp import HRP
 
 VERSION = (0, 1)
 
-__all__ = ['HRP', 'const', 'exception']
+__all__ = ['HRP', 'const', 'tag', 'exception']

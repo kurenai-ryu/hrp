@@ -26,6 +26,7 @@ try:
     counter = 0
     for tag in conn.read_tag(
             antennas=const.ANTENNA_1 | const.ANTENNA_2,
+            match=MatchParameter(const.MATCH_EPC, 0, codecs.decode('0000','hex')),
             tid=TidReadParameter(0, 10),
             #edata=TagAddress(0x02, 8)
         ): #test generator
