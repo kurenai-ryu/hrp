@@ -188,7 +188,7 @@ class HRP(object):
         LOGGER.debug("     data + check   %s", codecs.encode(datac, 'hex'))
         #todo check checksum? datac[-2:]
         if mtype != h_mtype or mid != h_mid:
-            raise exception.HRPFrameError("Not corresponding response")
+            raise exception.HRPFrameError("Not corresponding response mt=%s mid%s" % (h_mtype, h_mid))
         self.__response = datac[:-2]
 
     @log_call(logging.INFO)
@@ -302,8 +302,23 @@ class HRP(object):
             LOGGER.info(" supported protocols: [%i] = %s", proto, const.RF_PROTOCOL[proto])
         return bands, protocols
 
+    @log_call(logging.INFO)
+    def read_single_tag(self, antennas=1, match=None, tid=None, udata=None, rdata=None, password=None, monza=False, micron=False, em_sensor=False, edata=None):
+        if not self.init_read_tag(0, antennas, match, tid, udata, rdata,
+                                  password, monza, micron, em_sensor, edata):
+            LOGGER.warning("Can't read tags")
+            return
+        try:
+            self._recieve_packet(0x12, 0x00) #active data!
+        except exception.HRPFrameError:
+            #it shoudl have returned 0x12 0x01 if no tag is found
+            return None
+        tag = self.__decode_tag() #must decode before waiting stop
+        self.__wait_stop() #end single read
+        return tag
+
     @log_call()
-    def init_read_tag(self, antennas=1, match=None, tid=None,
+    def init_read_tag(self, inventory=1, antennas=1, match=None, tid=None,
                       udata=None, rdata=None, password=None,
                       monza=False, micron=False, em_sensor=False, edata=None):
         """read tag command AA0210
@@ -340,11 +355,13 @@ class HRP(object):
         mtype = const.MT_OPERATION
         mid = const.MID_OP_READ_EPC_TAG
         LOGGER.debug(" read antennas %i", antennas)
-        params = pack(">BB", antennas, 1) #fixed inventory - continous read
+        params = pack(">BB", antennas, inventory) #fixed inventory - continous read
         if match is not None and isinstance(match, MatchParameter):
             LOGGER.debug("adding match %i", match.area)
-            params += pack(">BBHB", 1, match.area, match.start, len(match.content))
-            params += match.content
+            match_pack = pack(">BHB", match.area, match.start, len(match.content)*8)
+            match_pack += match.content
+            params += pack(">BH", 1, len(match_pack))
+            params += match_pack
         if tid is not None and isinstance(tid, TidReadParameter):
             LOGGER.debug(" adding tid %s", tid)
             # tid[0] 0-> variable up to [1], 1-> fixed read [1] words
@@ -410,8 +427,8 @@ class HRP(object):
 
         """
         # pylint: disable-msg=R0914,too-many-arguments
-        if not self.init_read_tag(antennas, match, tid, udata, rdata, password,
-                                  monza, micron, em_sensor, edata):
+        if not self.init_read_tag(1, antennas, match, tid, udata, rdata,
+                                  password, monza, micron, em_sensor, edata):
             LOGGER.warning("Can't read tags")
             return
         self.end_read_tag = False
@@ -426,42 +443,54 @@ class HRP(object):
             except (KeyboardInterrupt, SystemExit):
                 LOGGER.info(" read_tag break!")
                 break
-            LOGGER.debug("read_tag rec %s", codecs.encode(self.__response, 'hex'))
-            epc = self.__response_shift_var()
-            LOGGER.info(" EPC(%i) = %s", len(epc), codecs.encode(epc, 'hex'))
-            tag_pc = self.__response_shift_int(2)
-            LOGGER.info(" TAGPC = 0x%x %s", tag_pc, bin(tag_pc))
-            antenna = self.__response_shift_int()
-            LOGGER.info(" antenna = %i", antenna)
-            tag = Tag(epc=epc, tag_pc=tag_pc, antenna=antenna)
-            while self.__response:
-                pid = self.__response_shift_int()
-                opt = {
-                    1: ('rssi', self.__response_shift_int),
-                    2: ('tag_result', self.__response_shift_int),
-                    3: ('tid', self.__response_shift_var),
-                    4: ('udata', self.__response_shift_var),
-                    5: ('rdata', self.__response_shift_var),
-                    6: ('sub_antenna', self.__response_shift_int),
-                    7: ('utc', self.__response_shift_fixed, 8),
-                    8: ('sequence', self.__response_shift_int, 4),
-                    9: ('frequency', self.__response_shift_int, 4),
-                    10: ('phase', self.__response_shift_int),
-                    11: ('em_sensor', self.__response_shift_fixed, 8),
-                    12: ('epc_data', self.__response_shift_var),
-                }
-                val = opt.get(pid, None)
-                if val is not None:
-                    if len(val) > 2: #size!
-                        temp = val[1](val[2])
-                    else:
-                        temp = val[1]()
-                    LOGGER.debug(" (%i) %s = %s", pid, val[0], temp)
-                    tag.__dict__[val[0]] = temp
-            if tag.tid:
-                LOGGER.debug(" TID(%i) = %s", len(tag.tid), codecs.encode(tag.tid, 'hex'))
+            tag = self.__decode_tag()
             yield tag
         self.stop()
+
+    @log_call()
+    def __decode_tag(self):
+        """
+        from self.__response
+
+        Returns
+        -------
+        decoded Tag instance
+        """
+        LOGGER.debug("read_tag rec %s", codecs.encode(self.__response, 'hex'))
+        epc = self.__response_shift_var()
+        LOGGER.info(" EPC(%i) = %s", len(epc), codecs.encode(epc, 'hex'))
+        tag_pc = self.__response_shift_int(2)
+        LOGGER.info(" TAGPC = 0x%x %s", tag_pc, bin(tag_pc))
+        antenna = self.__response_shift_int()
+        LOGGER.info(" antenna = %i", antenna)
+        tag = Tag(epc=epc, tag_pc=tag_pc, antenna=antenna)
+        while self.__response:
+            pid = self.__response_shift_int()
+            opt = {
+                1: ('rssi', self.__response_shift_int),
+                2: ('tag_result', self.__response_shift_int),
+                3: ('tid', self.__response_shift_var),
+                4: ('udata', self.__response_shift_var),
+                5: ('rdata', self.__response_shift_var),
+                6: ('sub_antenna', self.__response_shift_int),
+                7: ('utc', self.__response_shift_fixed, 8),
+                8: ('sequence', self.__response_shift_int, 4),
+                9: ('frequency', self.__response_shift_int, 4),
+                10: ('phase', self.__response_shift_int),
+                11: ('em_sensor', self.__response_shift_fixed, 8),
+                12: ('epc_data', self.__response_shift_var),
+            }
+            val = opt.get(pid, None)
+            if val is not None:
+                if len(val) > 2: #size!
+                    temp = val[1](val[2])
+                else:
+                    temp = val[1]()
+                LOGGER.debug(" (%i) %s = %s", pid, val[0], temp)
+                tag.__dict__[val[0]] = temp
+        if tag.tid:
+            LOGGER.debug(" TID(%i) = %s", len(tag.tid), codecs.encode(tag.tid, 'hex'))
+        return tag
 
     @log_call(logging.INFO)
     def restart(self):
@@ -480,16 +509,20 @@ class HRP(object):
         self._recieve_packet(mtype, mid)
         self.result = self.__response_shift_int()
         LOGGER.info(" stop response (0:ok) is %s", self.result)
+        self.__wait_stop()
+        return self.result == 0 # 0 is ok!
+
+    @log_call()
+    def __wait_stop(self):
+        """waiting finsih reason"""
         try:
             self.socket.settimeout(1) #test!
             self._recieve_packet(0x12, 0x01) #tag read finish reason!
             LOGGER.debug(" finish reason...ok!")
         except exception.HRPFrameTimeoutError:
             LOGGER.debug(" no finish packet...")
-            pass
         finally:
             self.socket.settimeout(self.timeout)
-        return self.result == 0 # 0 is ok!
 
     @log_call(logging.INFO)
     def band_region(self, new_region=None):

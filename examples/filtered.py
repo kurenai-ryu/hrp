@@ -1,5 +1,17 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
+
+"""
+filtered example (match)
+
+build match with MatchParameter
+start in bits,
+content in bytestring (in this example, decoded from hex string)
+limitation! only byte matching (the device can match on bit level)
+EPC starts at address 32 (0x20)
+TID & USR starts at 0
+"""
+
 import sys
 import os
 import traceback
@@ -26,8 +38,9 @@ try:
     counter = 0
     for tag in conn.read_tag(
             antennas=const.ANTENNA_1 | const.ANTENNA_2,
-            match=MatchParameter(const.MATCH_EPC, 0, codecs.decode('0000','hex')),
-            tid=TidReadParameter(0, 10),
+            #match=MatchParameter(const.MATCH_EPC, 0x20, codecs.decode('560179','hex')), # match EPC starting with 56 01 79
+            match=MatchParameter(const.MATCH_TID, 0x00, codecs.decode('e280b0a020','hex')), # match TID starting with e2 80 b0 a0 20
+            tid=TidReadParameter(0, 6),
             #edata=TagAddress(0x02, 8)
         ): #test generator
         if tag is None:

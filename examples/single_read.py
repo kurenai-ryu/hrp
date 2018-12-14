@@ -2,12 +2,9 @@
 # -*- coding: utf-8 -*-
 
 """
-Basic loop example
-1. starts connection
-2. set 100ms filter_time
-3. starts reading loop (it's a python generator read_tag())
-4. break with Ctrl+C
-5. stops reading and disconnect device
+Single read test
+
+read_single_tag() returns a Tag instance if a tag was found or None otherwise
 """
 
 import sys
@@ -15,6 +12,7 @@ import os
 import traceback
 import codecs
 
+import time
 
 #fix path to use local module
 sys.path.insert(1,os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
@@ -27,26 +25,22 @@ try:
     conn.set_log_level_debug() # enable for debug information
     print ("Connecting")
     conn.connect()
-    filter_time, RSSI_threshold = conn.tag_filter()
     conn.stop() #always before reading tag!
-    conn.tag_filter(100, 0)
-    print ("Connected! press Ctrl+C to break")
     #conn.read_tag(tid=TidReadParameter(0, 10)) #test
     #conn.read_tag(edata=TagAddress(0x2D, 2)) #test
-    counter = 0
-    for tag in conn.read_tag(
+    tag = conn.read_single_tag(
             antennas=const.ANTENNA_1 | const.ANTENNA_2,
+            #match=MatchParameter(const.MATCH_EPC, 32, codecs.decode('560179','hex')), # match EPC starting with 56 01 79
+            #match=MatchParameter(const.MATCH_TID, 0, codecs.decode('e280b0a020','hex')), # match TID starting with e2 80 b0 a0 20
             tid=TidReadParameter(0, 6),
             #edata=TagAddress(0x02, 8)
-        ): #test generator
-        if tag is None:
-            print ("Time out, {}".format(counter))
-            counter += 1
-            if counter > 10:
-                conn.end_read_tag = True
-        else: #proper tag
-            print (tag)
-    conn.tag_filter(filter_time, RSSI_threshold)
+        ) #test single read!
+    if tag is None:
+        print ("No tag found")
+    else: #proper tag
+        print (tag)
+    print ("sleeping...")
+    time.sleep(10)
 except Exception as e:
     print ("Process terminate : {}".format(e))
     print ("Error: %s" % sys.exc_info()[0])
