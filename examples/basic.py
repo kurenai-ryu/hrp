@@ -24,20 +24,23 @@ from hrp.tag import TidReadParameter, TagAddress, MatchParameter
 
 try:
     conn = HRP(ip='192.168.1.116', port=9090, ommit_ping=False, timeout=10)
-    conn.set_log_level_debug() # enable for debug information
+    #conn.set_log_level_debug() # enable for debug information
     print ("Connecting")
     conn.connect()
     filter_time, RSSI_threshold = conn.tag_filter()
     conn.stop() #always before reading tag!
     conn.tag_filter(100, 0)
     print ("Connected! press Ctrl+C to break")
-    #conn.read_tag(tid=TidReadParameter(0, 10)) #test
-    #conn.read_tag(edata=TagAddress(0x2D, 2)) #test
+    #       tid=TidReadParameter(0, 6), #test read 6 word tid (12 bytes 24 chars)
+    #       edata=TagAddress(0x02, 8), #test read exendend EPC with 8 words
+    #       edata=TagAddress(0x02, 8), #test read exendend EPC with 8 words
+
     counter = 0
     for tag in conn.read_tag(
             antennas=const.ANTENNA_1 | const.ANTENNA_2,
             tid=TidReadParameter(0, 6),
-            #edata=TagAddress(0x02, 8)
+            udata=TagAddress(0x28, 40),
+            edata=TagAddress(0x08, 2)
         ): #test generator
         if tag is None:
             print ("Time out, {}".format(counter))

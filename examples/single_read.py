@@ -4,7 +4,7 @@
 """
 Single read test
 
-read_single_tag() returns a Tag instance if a tag was found or None otherwise
+read_single_scan() returns a Tag array if any tag was found or empty otherwise
 """
 
 import sys
@@ -28,17 +28,18 @@ try:
     conn.stop() #always before reading tag!
     #conn.read_tag(tid=TidReadParameter(0, 10)) #test
     #conn.read_tag(edata=TagAddress(0x2D, 2)) #test
-    tag = conn.read_single_tag(
+    tags = conn.read_single_scan(
             antennas=const.ANTENNA_1 | const.ANTENNA_2,
             #match=MatchParameter(const.MATCH_EPC, 32, codecs.decode('560179','hex')), # match EPC starting with 56 01 79
             #match=MatchParameter(const.MATCH_TID, 0, codecs.decode('e280b0a020','hex')), # match TID starting with e2 80 b0 a0 20
             tid=TidReadParameter(0, 6),
             #edata=TagAddress(0x02, 8)
         ) #test single read!
-    if tag is None:
+    if not tags:
         print ("No tag found")
-    else: #proper tag
-        print (tag)
+    else:
+        for tag in tags: #proper tag array?
+            print (tag) #single tag print
     print ("sleeping...")
     time.sleep(10)
 except Exception as e:

@@ -303,19 +303,22 @@ class HRP(object):
         return bands, protocols
 
     @log_call(logging.INFO)
-    def read_single_tag(self, antennas=1, match=None, tid=None, udata=None, rdata=None, password=None, monza=False, micron=False, em_sensor=False, edata=None):
+    def read_single_scan(self, antennas=1, match=None, tid=None, udata=None, rdata=None, password=None, monza=False, micron=False, em_sensor=False, edata=None):
         if not self.init_read_tag(0, antennas, match, tid, udata, rdata,
                                   password, monza, micron, em_sensor, edata):
             LOGGER.warning("Can't read tags")
             return
-        try:
-            self._recieve_packet(0x12, 0x00) #active data!
-        except exception.HRPFrameError:
-            #it shoudl have returned 0x12 0x01 if no tag is found
-            return None
-        tag = self.__decode_tag() #must decode before waiting stop
-        self.__wait_stop() #end single read
-        return tag
+        tags = []
+        while True:
+            try:
+                self._recieve_packet(0x12, 0x00) #active data!
+            except exception.HRPFrameError:
+                #it shoudl have returned 0x12 0x01 if no tag is found
+                LOGGER.debug("single scan stop found!?")
+                return tags
+            tag = self.__decode_tag()
+            tags.append(tag) #must decode before waiting stop
+        return tags
 
     @log_call()
     def init_read_tag(self, inventory=1, antennas=1, match=None, tid=None,
@@ -535,7 +538,8 @@ class HRP(object):
 
         Returns
         -------
-
+            REGION_INDEX if get,
+            True if set and ok
 
         """
         if new_region is None: #read!
