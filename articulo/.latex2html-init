@@ -1,0 +1,3 @@
+$default_language = 'spanish';
+$TITLES_LANGUAGE = 'spanish';
+$MATH_SCALE_FACTOR = 1.6;

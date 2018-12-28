@@ -1,0 +1,495 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Stylish Article
+% LaTeX Template
+% Version 2.1 (1/10/15)
+%
+% This template has been downloaded from:
+% http://www.LaTeXTemplates.com
+%
+% Original author:
+% Mathias Legrand (legrand.mathias@gmail.com) 
+% With extensive modifications by:
+% Vel (vel@latextemplates.com)
+%
+% License:
+% CC BY-NC-SA 3.0 (http://creativecommons.org/licenses/by-nc-sa/3.0/)
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%----------------------------------------------------------------------------------------
+%	PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
+%----------------------------------------------------------------------------------------
+
+\documentclass[fleqn,10pt]{SelfArx} % Document font size and equations flushed left
+
+\usepackage[spanish,english]{babel} % Specify a different language here - english by default
+\PassOptionsToPackage{spanish}{babel}
+
+\usepackage{svg}
+\usepackage{booktabs}
+\usepackage{listings}
+\lstset{
+  basicstyle=\fontsize{7}{11}\ttfamily,
+  stringstyle=\ttfamily,
+  columns=fullflexible,
+  frame=single,
+  breaklines=true,
+  postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space}
+}
+\renewcommand{\lstlistingname}{Listado}
+
+\usepackage[utf8]{inputenc}
+\usepackage{textcomp}
+\usepackage[edges]{forest}
+
+%----------------------------------------------------------------------------------------
+%	COLUMNS
+%----------------------------------------------------------------------------------------
+
+\setlength{\columnsep}{0.55cm} % Distance between the two columns of text
+\setlength{\fboxrule}{0.75pt} % Width of the border around the abstract
+
+%----------------------------------------------------------------------------------------
+%	COLORS
+%----------------------------------------------------------------------------------------
+
+\definecolor{color1}{RGB}{0,0,90} % Color of the article title and sections
+\definecolor{color2}{RGB}{0,20,20} % Color of the boxes behind the abstract and headings
+
+%----------------------------------------------------------------------------------------
+%	HYPERLINKS
+%----------------------------------------------------------------------------------------
+
+\usepackage{hyperref} % Required for hyperlinks
+\hypersetup{hidelinks,colorlinks,breaklinks=true,urlcolor=color2,citecolor=color1,linkcolor=color1,bookmarksopen=false,pdftitle={Title},pdfauthor={Author}}
+
+%----------------------------------------------------------------------------------------
+%	ARTICLE INFORMATION
+%----------------------------------------------------------------------------------------
+
+\JournalInfo{AGETIC Investiga, Vol. I, No. 1, 2018} % Journal information
+\Archive{Agencia de Gobierno Electrónico y Tecnologías de la Información y Comunicación} % Additional notes (e.g. copyright, DOI, review/research article)
+
+\PaperTitle{Desarrollo de comunicación HRP con antenas RFID Clou/Hopeland} % Article title
+
+\Authors{Arturo Hernandez Calleja\textsuperscript{1}*} % Authors , James Smith\textsuperscript{2}
+\affiliation{\textsuperscript{1}\textit{Profesional de Investigación, Area de Investigación, Unidad de Innovación Investigación y Desarrollo, AGETIC}} % Author affiliation
+%\affiliation{\textsuperscript{2}\textit{Carrera de Ingeniería Electrónica, Facultad de Ingeniería, UMSA}} % Author affiliation
+\affiliation{*\textbf{Contacto}: ahernandez@agetic.gob.bo} % Corresponding author
+
+\Keywords{RFID --- UHF --- ISO18000-6} % Keywords - if you don't want any simply remove all the text between the curly brackets
+\newcommand{\keywordname}{Palabras Clave} % Defines the keywords heading name
+
+%----------------------------------------------------------------------------------------
+%	ABSTRACT
+%----------------------------------------------------------------------------------------
+
+\Abstract{
+resumen....
+}
+
+%----------------------------------------------------------------------------------------
+
+\usepackage{graphicx}
+\begin{document}
+\title{Sistema automático dependiente de vigilancia}
+
+\author{Arturo Hernandez Calleja}
+
+\selectlanguage{spanish}
+
+\flushbottom % Makes all text pages the same height
+
+\maketitle % Print the title and abstract box
+
+\tableofcontents % Print the contents section
+
+\thispagestyle{empty} % Removes page numbering from the first page
+
+%----------------------------------------------------------------------------------------
+%	ARTICLE CONTENTS
+%----------------------------------------------------------------------------------------
+
+\section*{Introdución} % The \section*{} command stops section numbering
+\addcontentsline{toc}{section}{Introdución} % Adds this section to the table of contents
+
+La tecnología RFID utiliza campos electromagnéticos para identificar y rastrear etiquetas (tags) adheridas a objetos, Estas etiquetas  contienen un circuito electrónico y una antena por la cual tanto se energiza como se comunica con el circuito permitiendo el intercambio de información mediante ondas electromagnéticas \footnote{Existen también etiquetas activas que poseen alimentación propia mediante una batería, permitiendo mayor alcance que una etiqueta pasiva}.
+
+Existen diversos estándares y frecuencias para esta tecnología, dependiendo del uso y la distancia que se requiere, entre ellos algunos son:
+\begin{itemize}
+\item  120 kHz identificación simple de 32 bits hasta 10[cm]
+\item  134 kHz similar al anterior, pero utilizado para identificación de mascotas
+\item  13.56 MHz entre 10[cm] a 1[m] utilizado sobre todo con tarjetas inteligentes (Smartcards) (ISO 15693, ISO 14443) y otros (Mifare, iCLASS) asi como ISO28560 para bibliotecas.
+\item  860 a 960MHz utilizado para identificación a mayor distancia (hasta 12[m]) (ISO18000-6) para manejo de almacenes  e identificación vehicular.
+\end{itemize}
+
+%------------------------------------------------
+
+\section{Objetivo}
+
+Desarrollar un módulo de comunicación con antenas RFID Clou/Hopeland y probar la lectura de vehiculos mediante sus etiquetas B-SISA y SOAT.
+
+\section{Antecedentes}
+
+La ANH como institución responsable de regular, controlar, supervisar y fiscalizar las actividades relacionadas con hidrocarburos \footnote{Constitución política del Estado, Artículo 365} tiene como obligación la implementación de un sistema de Información de Comercialización de combustibles, a través de (…) el colocado de etiquetas de auto-identificación en todo vehículo automotor que circule en territorio nacional. \footnote{Ley 264, Ley del Sistema Nacional de Seguridad ciudadana “Para una vida segura”, Artículo 49} el cual se fue aprobado y reglamentado como Sistema de Información y Comercialización de Combustibles (B-SISA) el 2015 \footnote{RA-ANH-DJ 0102/2015 y RAN-ANH-UN 0012/2015}.
+
+\section{Justificación}
+
+Si bien existen servicios externos para la ubicación y rastreo de vuelos comerciales \footnote{https://www.makeuseof.com/tag/6-sites-view-maps-airline-flight-paths-bonus-mobile-apps/}, éstos son controlados y limitados tanto en información como en consumo de datos, donde una empresa privada puede solicitar que sus vuelos no sean públicos, asi como limitar el tiempo de los datos visibles. Es interesante notar que varios de estos servicios se basan en receptores ADS-B instalados por sus propios usuarios (a cambio de mayores prestaciones, como flujo de datos, etc), y como dato curioso, existen muy pocos receptores en Bolivia, por lo que se limita aún más la cantidad de información disponible para nuestro territorio.
+
+
+\section{Marco teórico}
+
+Algunos de los conceptos clave para entender esta tecnología y poder aplicarla son: el formato de las etiquetas y la comunicación HRP.
+
+\subsection*{Identificación en UHF (860 a 960MHz)}
+
+Estas etiquetas se definieron originalmente por EPCGlobal como el protocolo de identificación por radiofrecuencia de Código de Producto Electrónico (EPC) clase 1, 2da generación, para trabajar en 860 a 960MHz \footnote{Banda ISM según la UIT, pero restringida parcialmente en otros paises como Bolívia} este protocolo fue aprobado como parte de la ISO18000-6 para manejo de items por radiofrecuencia.
+
+En sí el protocolo define un sistema compuesto por interrogadores (llamados también lectores – Readers) y las etiquetas o Tags. Un interrogador transmite información a la etiqueta al modular señal de Radio Frecuencia entre 860 a 960MHz. La etiqueta recibe información y energía de dicha señal modulada, lo que indica que este sistema utiliza una etiqueta pasiva. Para recibir información de la etiqueta, el interrogador envía una señal de onda continua (CW), donde la etiqueta responde modulando el coeficiente de reflexión de su antena, retro-dispersando información al interrogador.  La comunicación se realiza en semidúplex con inicio en el interrogador, es decir que se alterna la comunicación entre el interrogador y las etiquetas, siempre iniciado por el interrogador.
+
+\subsection*{Áreas de memoria de una etiqueta EPC}
+
+Estas etiquetas tienen 4 áreas de memoria:
+
+\paragraph{Memoria reservada} (64 bits) donde se almacena las contraseñas de acceso y de bloqueo ambos de 32 bits, en una etiqueta nueva, ambas contraseñas son 00000000
+\paragraph{Memoria EPC} ($\ge$ 128 bits) es donde se encuentra el código de producto electrónico (EPC). Los primeros 16 bits son para la verificación de redundancia cíclica (CRC) los siguientes 16 bits son de control de protocolo (PCW), que indican algunas características como ser el tamaño y el uso del EPC, y los siguientes bits corresponden al EPC como tal (normalmente se tiene un EPC de 96 bits) Cabe mencionar que en una etiqueta nueva el EPC es reescribible. Opcionalmente en este espacio de memoria se implementa el Control de protocolo Extendido (XPC) que define el tipo de bloqueo que tiene la etiqueta.
+\paragraph{Memoria TID} ($\ge$ 96 bits). Corresponde al identificador de etiqueta (Tag), este es un código de 96 bits (32 bits de identificación del fabricante/modelo y 64 bits de identificador único) que es inalterable y único en el mundo (opcionalmente puede tener otros 96 bits adicionales para configuración del dispositivo
+\paragraph{Memoria de Usuario} dependiendo de la etiqueta, hasta 512 bits, por defecto con acceso libre.
+
+Las contraseñas de acceso, permite limitar la escritura e incluso la lectura de determinadas áreas, mientras que la contraseña de bloqueo (kill password) permite “destruir” el tag (bloqueando el tag e inutilizado completamente) \footnote{algunas etiquetas, permite recomisionar el tag, mandando el comando de bloqueo 2 veces consecutivas lo que permite eliminar la información de usuario. Pero una etiqueta ya bloqueada no se puede recomisionar.} y cabe mencionar que los tags de B-SISA y SOAT tienen sus respectivas contraseñas de acceso y bloqueo
+
+\subsection*{Protocolo HRP}
+
+Las antenas Clou/Hopeland implementan un protocolo para sus lectores denominado Hopeland Reader Protocol (HRP) que permite interactuar entre un controlador (ordenador PC o similar) y el lector mediante una interfaz serial (RS232 – RS485 – USB) o Ethernet (TCP).
+
+\begin{table}[hbt]
+\caption{Trama HRP}
+\centering
+\begin{tabular}{|l|l|l|l|l|l|}
+\hline HEAD & PCW & ADR & LENGTH & DATA & CRC \\ \hline
+\end{tabular}
+\newline Fuente: \emph{The HRP Protocol} \cite{Hopeland:2016}
+\label{tab:hrp_frame}
+\end{table}
+
+La trama de datos  se envía en formato big-endian (byte más significativo primero) y consiste en: un byte de cabecera consistente en 0xAA, 2 bytes de palabra de control de protocolo (PCW) donde se tiene los siguientes bits:
+
+\begin{table}[hbt]
+\caption{Palabra de Control}
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+Bits    & Definicion  & Descripcion \\ \midrule
+15-14 & Reservado   & Mantener en 0 \\ \hline
+ 13     & RS485   & Utiliza ADR\\ \hline
+ 12     & Origen & \begin{tabular}{@{}l@{}}0: indica un mensaje originado \\ en el controlador o como respuesta \\ 1: mensaje iniciado por el lector\end{tabular} \\ \hline
+ 11-8 & Tipo & \begin{tabular}{@{}l@{}}0: Error o advertencia\\1: mensaje de Configuracion\\2: mensaje de Operación\\3: mensaje de bitacora\\4: mensaje de actualización\\5: mensaje de prueba\end{tabular} \\ \hline
+7-0 & Identificador   & depende del tipo de mensaje \\ 
+\bottomrule
+\end{tabular}
+\newline Fuente: \emph{The HRP Protocol} \cite{Hopeland:2016}
+\end{table}
+
+
+El bit 13 indica si la comunicación se realiza por 485 que indica que existe y se utiliza la dirección de 8 bits ADR. Si este bit es 0 (para comunicación TCP) el byte ADR no existe.
+ El bit 12 de Origen normalmente es 0 para cualquier comando emitido por el PC controlador y su respectiva respuesta del lector. Sólo cuando se inicia un proceso de lectura contínua, el lector emite tramas automáticamente con cada tag detectado y con este bit en 1.
+
+El Tipo e Identificador de mensajes (denominados MT y MID) permite diferenciar los distintos \underline{Comandos} que se verán más adelante.
+
+La Longitud (LENGTH) de los datos es un número de 16 bits \footnote{actualmente el límite del protocolo es de 1024 bytes} que indica el tamaño del siguiente campo de Datos. Finalmente viene la Verificación de redundancia cíclica que es otro número de 16 bits, que adopta el algoritmo CRC-16/UMTS (polinomio 0x8005 con inicio 0x0000) sobre todo el paquete exceptuando la cabecera 0xAA.
+
+Por ejemplo el comando de reinicio de dispositivo corresponde al tipo MT=0x1 MID=0x0F y no tiene ningún parámetro por lo que genera una trama \lstinline{AA 01 0F 00 00 94 CF}. Este es el único comando que no genera una respuesta del lector, sino más bien reinicia el equipo cortando la comunicación.
+
+\subsection*{Parámetros}
+
+La sección de datos contienen los parámetros de cada comando, y se divide en dos tipos: parámetros obligatorios (M - mandatorio), que deben ser enviados en el orden indicado, y parámetros opcionales que se deben enviar con un identificador de parámetro (PID) por delante. También en ambos casos existe parámetros de longitud variable, donde se antecede al parámetro con dos bytes de tamaño de parámetro. 
+
+Por ejemplo uno de los comandos más importantes es el de lectura de etiquetas.
+
+\begin{table}[hbt]
+\caption{Lectura de tags  MT = 0x02 MID  =0x10}
+\centering
+\begin{tabular}{@{}lllll@{}}
+\toprule
+Nombre    & PID  & tipo & descripcion \\ \midrule
+Antenas & (M)   & U8 & máscara de antenas \\ \hline
+modo  & (M)   & U8 &  \begin{tabular}{@{}l@{}}0: un solo barrido  \\ 1: modo contínuo\end{tabular}\\ \hline
+Filtro  & 0x01 & U8 var& \begin{tabular}{@{}l@{}}Byte 0: área \\(1:EPC,2:TID) \\Byte 1 y 2: inicio\\ Byte 3:  longitud \\ Byte 4 +: dato\end{tabular}\\ \hline
+Leer TID & 0x02 & U8 x2& \begin{tabular}{@{}l@{}}Byte 0: modo de lectura\\ Byte 1:  tamaño a leer \end{tabular} \\ \hline
+Usuario & 0x03  & U8 x3& \begin{tabular}{@{}l@{}}Byte 0 + 1: inicio\\ Byte 2:  tamaño a leer \end{tabular} \\ \hline
+Reservado & 0x04  & U8 x3 & \begin{tabular}{@{}l@{}}Byte 0 + 1: inicio\\ Byte 2:  tamaño a leer \end{tabular} \\ \hline
+Contraseña & 0x05  & U32 & para autenticación \\ \hline
+Datos EPC & 0x09  & U8 x3 & \begin{tabular}{@{}l@{}}Byte 0 + 1: inicio\\ Byte 2:  tamaño a leer \end{tabular} \\ \hline
+\bottomrule
+\end{tabular}
+\newline Fuente: \emph{The HRP Protocol} \cite{Hopeland:2016}
+\end{table}
+
+Tiene dos parámetros obligatorios, mascara de Antennas, donde cada bit habilita una antena correspondiente, por ejemplo el valor 0x05 o 0b0101 habilita la antena 1 y 3 para la lectura. el otro parámetro obligatorio, es el modo de lectura, donde 0 corresponde a un solo barrido (y el lector responderá con todos los tags que encuentre o con fin de lectura) o barrido contínuo, donde el lector enviará una respuesta cada vez que detecte un tag, hasta que se le envíe el comando de parada (Stop)
+
+El Filtro es un comando variable, (se debe anteponer el tamaño del subpaquete generado) se compone de 4 campos, el primer byte es el área a filtrar, se puede filtrar por EPC, TID  o memoria de usuario. los siguientes 16 bits corresponde a la dirección de incio (en bits) para la comparación, el siguiente byte es la longitud en bits a comparar, y a continuación los datos que se desea utilizar de filtro. Por ejemplo si quisierámos filtrar la lectura para leer sólamente los tags con EPC \footnote{recordemos que la parte útil del EPC empieza en el bit 32 o 0x20} que empiecen con 010190c00100 se debe enviar como parámetro 0x01, \lstinline{00 0A 01 00 20 30 01 01 90 c0 01 00}.
+
+Los siguientes parámetros corresponden a lectura de ciertas áreas de memoria, para leer el TID se debe enviar dos bytes, el primer byte indica al lector si hará una lectura hasta un máximo de N words o si forzará la lectura de N words. el segundo byte es el tamaño (N) en words (palabras de 16 bits), normalmente el TID es el 6 words = 96 bits por tanto para leer el TID se debe enviar como parámetro 0x02, \lstinline{00 06}
+
+Para leer el área reservada, el área de usuario o el área del EPC, se envía 3 bytes adicionales, Los primeros dos corresponde a la dirección de inicio de lectura (en 16 bits) y el tercer byte corresponde al tamaño en words que se desea leer. 
+
+
+Luego de enviar el comando, el lector responde inmediatamente con un acuse con el mismo MID=0x10 y un solo argumento obligatorio. el cual es 0 si se aceptó el comand, 1 si se activó una antena inexistente, 2 si hubo error en el parámetro del filtro, 3 si hubo error en el parámetro del TID, 4 si hubo error en el parámetro de usuario, 5 para el parámetro de memoria reservada, y 6 para un error en los otros parámetros.
+
+Si se detecta un tag (ya sea en modo simple o en modo continuo) el lector enviará una trama de respuesta:
+
+\begin{table}[hbt]
+\caption{Tag leido  MT = 0x12 MID  =0x00}
+\centering
+\begin{tabular}{@{}lllll@{}}
+\toprule
+Nombre    & PID  & tipo & descripcion \\ \midrule
+EPC & (M)   & var & EPC leído \\ \hline
+PCW  & (M)   & U16 & palabra de control\\ \hline
+Antena  & (M)   & U8 & origen\\ \hline
+RSSI & 0x01 & U8 & Intensidad de señal\\ \hline
+Resultado & 0x02 & U8 & \begin{tabular}{@{}l@{}}0: lectura exitosa\\1: sin respuesta\\2: error CRC\\3: area bloqueada\\4:desborde\\5: error de acceso\\6:otro error de tag\\7: error del lector \end{tabular} \\ \hline
+TID & 0x03  & var& dato del TID\\ \hline
+Usuario & 0x04  & var & dato de área usuario \\ \hline
+Reservado & 0x05  & var & dato de area de usuario \\ \hline
+Datos EPC & 0x0C  & var & dato del área EPC\\ \hline
+\bottomrule
+\end{tabular}
+\newline Fuente: \emph{The HRP Protocol} \cite{Hopeland:2016}
+\end{table}
+
+Para una lectura simple el lector enviará solamente el EPC detectado y su PCW, al ser de tamaño variable el EPC se devuelve con dos bytes adicionales del tamaño del EPC. también se envía la antena que realizó la lectura y como primer parámetro opcional la intensidad de la señal de lectura \footnote{lo que permite en otras aplicaciones determinar la posición de un tag a partir de la intensidad de lectura en diversas antenas}.
+
+El Resultado nos indica si hubo algún problema al leer el resto de datos del tag. si es 0 los siguientes parámetros contienen la información leída si ésta hubiese sido solicitada previamente. al ser todos los campos de datos variables, se anteponen de 2 bytes del tamaño correspondiente.
+
+
+Ya sea si fue un simple barrido, o luego de finalizar el modo contínuo, el lector envía una trama de finalización con MT=0x12 y MID=0x01 con un solo argumento que es 0: si la lectura de barrido simple finalizó correctamente, 1, si se recivió el comando de parada (stop) o 2, si hubo algún error para interrumpir la lectura. Por ejemplo una letura simple finaliza con la trama \lstinline{AA 12 01 00 01 00 15 70}.
+
+El comando de parada no tiene argumento y corresponde a MT=0x2 MID=0xFF \lstinline{AA 02 FF 00 00 A4 0F} y su correspondiente respuesta tiene un argumento que es 0 si el comando fue aceptado o 1 si hay un error en el sistema, normalmente la respuesta es 0: \lstinline{AA 02 FF 00 01 00 0A D8}.
+
+
+\section{Metodología}
+
+La implementación se realizó en Python para facilitar las pruebas rápidas y aprovechar la experiencia en manejo de sockets.
+
+\begin{figure}[ht]
+\caption{Estructura del módulo}
+\centering
+\begin{forest}
+  for tree={%
+    folder,
+    grow'=0,
+    fit=band,
+  }
+  [hrp
+    [\_\_init\_\_.py]
+    [hrp.py]
+    [const.py]
+    [exception.py]
+    [tag.py]
+    [util.py]
+  ]
+\end{forest}
+\newline Fuente: Elaboración propia
+\label{fig:hrp_folder}
+\end{figure}
+
+se implementó un módulo llamado hrp, donde existen varios archivos:
+
+\paragraph{const.py} contiene las definiciones de constantes para el protocolo HRP, como ser los tipos de mensajes y los identificadores de comandos.
+
+\paragraph{exception.py} define las excepciones: HRPBaseError es la más básica para capturar cualquier error del módulo, HRPNetworkError indica si hubo un error en la comunicación del socket (pérdida de comunicación por ejemplo), HRPFrameError indica si hubo un error en la trama (respuesta incorrecta o no esperada) y finalmente HRPFrameTimeoutError indica que no se recibió la respuesta a un comando a tiempo.
+
+\paragraph {util.py} contiene algunas funciones de bitácora, la función \_ord() para compatibilidad entre python2 y python3, y la función crc16(data), para el cálculo de la verificación de redundancia \footnote{actualmente la implementación sólo genera esta verificación para enviar datos al lector, aún no implementa una verificación de la integridad de la trama, ya que al utilizar TCP no es muy necesario}.
+
+\paragraph{tag.py} define la clase Tag, y las clases para los parámetros de filtro o lectura de datos.
+
+\subsection*{Cocantena}
+
+Para las pruebas iniciales se recurrió a un receptor DVB-T convencional \footnote{https://www.amazon.com/RTL2832U-R820T2-DVB-T-Radio-Sensitivity/dp/B073FFLRYH} cuya antena para radio y TV no era apropiado para la recepción de señales ADS-B \footnote{DVB-T de 474 a 786MHz - Radio FM de 88 a 108 MHz} por lo que se contruyó una antena omnidireccional para 1090MHz, utilizando como plano de tierra una lata de aluminio.
+
+Para ello se determinó la longitud de la antena a partir de la frecuencia ADS-B y un cuarto de la longitud de onda,
+
+%\begin{equation}
+\begin{multline}
+f = 1090 [MHz] \\
+\lambda = \frac{c}{f} \\
+\lambda = \frac{299792458 [\frac{m}{s}]}{1090 \cdot 10^{6}[\frac{1}{s}]} \\
+\lambda = 0.275 [m] \\
+\therefore \frac{\lambda}{4} = 0.0688 [m] = 68.8 [mm]
+\label{eq:cuarta}
+\end{multline}
+%\end{equation}
+
+La antena resultante, fue probada inicialmente en la ventana del 4to piso del Edificio FNDR (Oficinas AGETIC)
+
+Donde tuvo un desempeño pobre (distancia máxima de detección 30km) debido, sobretodo, a la ubicación en medio de la ciudad y la obstrucción de la línea de vista por parte de edificios aledaños.
+
+Posteriormente se trasladó la antena a una ubicación más propicia en la ciudad del alto, a 3km del Aeropuerto Internacional de El Alto, obteniéndose un mejor desempeño (distancia máxima de detección 300km)
+
+\subsection*{Dump1090}
+
+\begin{figure}[ht]
+\caption{Captura de la pantalla dump1090}
+\centering
+\includegraphics[width=0.9\linewidth]{cc0.jpg}
+\newline Fuente: Elaboración propia
+\label{fig:dump}
+\end{figure}
+
+Para el procesamiento de la señal se optó por un desarrollo existente\footnote{versión original: https://github.com/antirez/dump1090 versión utlizada: https://github.com/mutability/dump1090}, basado en un decodificador de Modo S diseñado en base a librtlsdr. Esta aplicación permite levantar flujos de transmisión continua con la información decodificada en formatos SBS, AVR y modeSbeast, adicionalmente permite generar un sitio web local para el despliegue de un mapa con las aeronaves detectadas.
+
+
+
+Impulsados por los resultados obtenidos, se gestionó la instalación de dos antenas adicionales en los aeropuertos de Viru Viru en Santa Cruz y Jorge Wilstermann en Cochabamba. Para ello se optó por un receptor más acorde al proyecto, utilizándose un receptor FlightAware y un filtro para 1090MHz. Si bien el receptor está basado en el mismo RTL2832U tiene una mejor ganancia y con el filtro permite eliminar interferencias de frecuencias cercanas. La antena también está mejor diseñada para 1090MHz por lo que el desempeño fue mucho mejor que el primer sistema, ya que en Santa Cruz, se tuvo un alcance de hasta 500 km\footnote{En cochabamba debido a la topografía del lugar se tuvo un alcance de 200km}.
+
+\begin{figure}[ht]
+\caption{Receptor Flightaware}
+\centering
+\includegraphics[width=0.9\linewidth]{flightaware.jpg}
+\newline Fuente: amazon.com
+\label{fig:flighaware}
+\end{figure}
+
+Todos estos receptores fueron enlazados mediante una Red Privada Virtual para concentrar la información disponible.
+
+\begin{figure}[ht]
+\caption{Instalación en Santa Cruz}
+\centering
+\includegraphics[width=0.8\linewidth]{antena_scz.jpg}
+\newline Fuente: Aeropuerto Viru Viru
+\label{fig:antena_vvi}
+\end{figure}
+
+\subsection*{VirtualRadar}
+
+Para combinar la información de los receptores desplegados, se recurrió a otro desarrollo existente, el Servidor Virtual Radar (VRS), una aplicación de codigo abierto en dotNET con capacidad de combinar la información de varios receptores que tengan flujos de red en formato SBS, AVR o modeBeast (aprovechando la información extra de este último formato). Al tener una base de datos propia para la información de las aeronaves, es posible agregar o actualizar la información de registro, modelo de avión y operador, apartir del identificador OACI.
+
+\begin{figure}[ht]
+\caption{Pantalla VRS}
+\centering
+\includegraphics[width=0.9\linewidth]{vrs.png}
+\newline Fuente: Elaboración Propia
+\label{fig:vrs}
+\end{figure}
+
+Por ejemplo en la Figura \ref{fig:vrs} se puede ver la información de una aeronave en particular (y la información obtenida de su base de datos local), junto con su ruta sobre el mapa \footnote{Se puede observar el paso que da este vuelo internacional cerca del aeropuerto del Alto, y de Viru Viru, en vez de seguir una ruta lineal.}. También se puede observar el área cubierta por cada antena, dando bastante énfasis en el área cubierta por la antena de Viru Viru.
+
+Si bien el VRS permite generar reportes sobre los vuelos capturados, tiene la pequeña deficiencia de no almacenar la información de la ruta exacta de un vuelo ya almacenado, dando priorridad únicamente a las posiciones de inicio y final de captura, por ejemplo, en la figura \ref{fig:reporte_vrs} se observa solo los puntos de principio y final de captura de datos de un vuelo entre Lima y Sao Paulo, correspondiente a los límites del área de cobertura de nuestras antenas.
+
+\begin{figure}[ht]
+\caption{Reporte de un vuelo en VRS}
+\centering
+\includegraphics[width=0.9\linewidth]{reporte_vrs.png}
+\newline Fuente: Elaboración Propia
+\label{fig:reporte_vrs}
+\end{figure}
+
+\section{Resultados}
+
+Para el análisis de datos, se optó por alimentar la información de las antenas a un red ADS-B con mayores prestaciones. obtándose por la red OpenSkyNetwork, que ofrece herramientas estadísticas sobre el rendimiento de los receptores.
+
+\subsection*{El Alto}
+
+El primer receptor instalado, tiene un buen desempeño\footnote{https://opensky-network.org/receiver-profile?s=-1408236454} con un rango entre 180 a 300 km cubriendo un área de 35.000 a 62.000 km2, con un promedio de 550 mensajes procesados por dia (llegando a 44 mensajes por segundo) y capturando hasta 50 aeronaves por día.
+
+\begin{figure}[ht]
+\caption{El Alto: Rango de 1 día}
+\centering
+\includegraphics[width=0.8\linewidth]{lpb_range.png}
+\newline Fuente: OpenSky Network
+\label{fig:lpb_range}
+\end{figure}
+
+\begin{figure}[ht]
+\caption{El Alto: Disponibilidad}
+\centering
+\includegraphics[width=0.8\linewidth]{lpb_disp.png}
+\newline Fuente: OpenSky Network
+\label{fig:lpb_disp}
+\end{figure}
+
+\begin{figure}[ht]
+\caption{El Alto: Promedio de mensajes}
+\centering
+\includegraphics[width=0.8\linewidth]{lpb_mes.png}
+\newline Fuente: OpenSky Network
+\label{fig:lpb_mes}
+\end{figure}
+
+\subsection*{Cochabamba}
+
+Pese a ser un mejor receptor, esta antena tuvo un rendimiento medio\footnote{https://opensky-network.org/receiver-profile?s=-1408236489}, recalcando de esta forma la importancia de la ubicación y la línea de vista \footnote{Recordemos que cochabamba es un valle rodeado de cerranías}. Tiene un rango entre 150 a 220km, cubriendo un área entre 25.000 a 40.000 km2, con 450.000 mensajes procesados por día (llegando a 32 mensajes por segundo) y capturando hasta 60 aeronaves por día.
+
+\begin{figure}[ht]
+\caption{Cochabamba: Rango de 1 día}
+\centering
+\includegraphics[width=0.8\linewidth]{cbb_range.png}
+\newline Fuente: OpenSky Network
+\label{fig:cbb_range}
+\end{figure}
+
+\begin{figure}[ht]
+\caption{Cochabamba: Disponibilidad}
+\centering
+\includegraphics[width=0.8\linewidth]{cbb_disp.png}
+\newline Fuente: OpenSky Network
+\label{fig:cbb_disp}
+\end{figure}
+
+\begin{figure}[ht]
+\caption{Cochabamba: Promedio de mensajes}
+\centering
+\includegraphics[width=0.8\linewidth]{cbb_mes.png}
+\newline Fuente: OpenSky Network
+\label{fig:cbb_mes}
+\end{figure}
+
+
+\subsection*{Santa Cruz}
+
+Esta fue la antena con el mejor rendimiento\footnote{https://opensky-network.org/receiver-profile?s=-1408236530}, con un promedio de 500km de rango direccional, cubriendo un área entre 200.000 a 350.000 km2, con 1.250.000 mensajes procesados por día (llegando a 32 mensajes por segundo) y capturando hasta 100 aeronaves por día.
+
+\begin{figure}[ht]
+\caption{Viru Viru: Rango de 1 día}
+\centering
+\includegraphics[width=0.8\linewidth]{vvi_range.png}
+\newline Fuente: OpenSky Network
+\label{fig:vvi_range}
+\end{figure}
+
+\begin{figure}[ht]
+\caption{Viru Viru: Disponibilidad}
+\centering
+\includegraphics[width=0.8\linewidth]{vvi_disp.png}
+\newline Fuente: OpenSky Network
+\label{fig:vvi_disp}
+\end{figure}
+
+\begin{figure}[ht]
+\caption{Viru Viru: Promedio de mensajes}
+\centering
+\includegraphics[width=0.8\linewidth]{vvi_mes.png}
+\newline Fuente: OpenSky Network
+\label{fig:vvi_mes}
+\end{figure}
+
+\section{Conclusiones}
+
+Tan sólo colocando 3 antenas receptoras ADS-B se ha logrado cubrir un 50\% del territorio boliviano. Aunque se pudo evidenciar que la mayoría de las aeronaves nacionales (principalmente de la línea amaszonas) solo envían mensajes en Modo-S, impidiendo obtener su ubicación con el arreglo actual. Para ello, se puede utilizar una técnica llamada multilateración MLAT, que con 3 o más receptores ADS-B separados espacialmente en 5km o más \footnote{Es decir en un arreglo cuadrático o circular, evitando formar una sola línea de sensores}.
+
+También se evidenció pequeñas falencias en los transpondedores de algunas aeronaves nacionales, que tienen bastante interferencia (posiblemente por falta de calibración en el mismo transpondendor) e incluso varias aeronaves que tiene un arrastre de la señal GPS por falta de calibración en sus antenas.
+
+Si se implementara un sistema de recepción ADS-B que no entre en conflicto con el SIVICEA (o incluso que pueda trabajar en conjunto para corroborar - certificar la información) se debería ver de instalar más antenas en nuestro territorio.
+
+%----------------------------------------------------------------------------------------
+%	REFERENCE LIST
+%----------------------------------------------------------------------------------------
+\phantomsection
+\bibliographystyle{unsrt}
+\bibliography{bibliografia}{}
+
+%----------------------------------------------------------------------------------------
+
+\end{document}
