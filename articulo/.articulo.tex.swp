@@ -29,7 +29,7 @@
 \usepackage{booktabs}
 \usepackage{listings}
 \lstset{
-  basicstyle=\fontsize{7}{11}\ttfamily,
+  basicstyle=\ttfamily, %\fontsize{7}{11}
   stringstyle=\ttfamily,
   columns=fullflexible,
   frame=single,
@@ -37,6 +37,40 @@
   postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space}
 }
 \renewcommand{\lstlistingname}{Listado}
+
+% Default fixed font does not support bold face
+\DeclareFixedFont{\ttb}{T1}{txtt}{bx}{n}{9} % for bold
+\DeclareFixedFont{\ttm}{T1}{txtt}{m}{n}{9}  % for normal
+
+% Custom colors
+\usepackage{color}
+\definecolor{deepblue}{rgb}{0,0,0.5}
+\definecolor{deepred}{rgb}{0.6,0,0}
+\definecolor{deepgreen}{rgb}{0,0.5,0}
+
+% Python style for highlighting
+\newcommand\pythonstyle{\lstset{
+language=Python,
+basicstyle=\ttm,
+otherkeywords={self},             % Add keywords here
+keywordstyle=\ttb\color{deepblue},
+emph={MyClass,__init__},          % Custom highlighting
+emphstyle=\ttb\color{deepred},    % Custom highlighting style
+stringstyle=\color{deepgreen},
+frame=tb,                         % Any extra options here
+showstringspaces=false            % 
+}}
+
+% Python environment
+\lstnewenvironment{python}[1][]
+{
+\pythonstyle
+\lstset{#1}
+}
+{}
+
+% Python for inline
+\newcommand\pythoninline[1]{{\pythonstyle\lstinline!#1!}}
 
 \usepackage[utf8]{inputenc}
 \usepackage{textcomp}
@@ -146,11 +180,11 @@ Algunos de los conceptos clave para entender esta tecnología y poder aplicarla 
 
 Estas etiquetas se definieron originalmente por EPCGlobal como el protocolo de identificación por radiofrecuencia de Código de Producto Electrónico (EPC) clase 1, 2da generación, para trabajar en 860 a 960MHz \footnote{Banda ISM según la UIT, pero restringida parcialmente en otros paises como Bolívia} este protocolo fue aprobado como parte de la ISO18000-6 para manejo de items por radiofrecuencia.
 
-En sí el protocolo define un sistema compuesto por interrogadores (llamados también lectores – Readers) y las etiquetas o Tags. Un interrogador transmite información a la etiqueta al modular señal de Radio Frecuencia entre 860 a 960MHz. La etiqueta recibe información y energía de dicha señal modulada, lo que indica que este sistema utiliza una etiqueta pasiva. Para recibir información de la etiqueta, el interrogador envía una señal de onda continua (CW), donde la etiqueta responde modulando el coeficiente de reflexión de su antena, retro-dispersando información al interrogador.  La comunicación se realiza en semidúplex con inicio en el interrogador, es decir que se alterna la comunicación entre el interrogador y las etiquetas, siempre iniciado por el interrogador.
+En sí el protocolo define un sistema compuesto por interrogadores (llamados también lectores – \emph{Readers}) y las etiquetas o \emph{Tags}. Un lector transmite información a la etiqueta al modular señal de Radio Frecuencia entre 860 a 960MHz. La etiqueta recibe información y energía de dicha señal modulada, lo que indica que este sistema utiliza una etiqueta pasiva. Para recibir información de la etiqueta, el lector envía una señal de onda continua (CW), donde la etiqueta responde modulando el coeficiente de reflexión de su antena, retro-dispersando información al lector.  La comunicación se realiza en semidúplex con inicio en el lector, es decir que se alterna la comunicación entre el lector y las etiquetas, siempre iniciado por el lector.
 
 \subsection*{Áreas de memoria de una etiqueta EPC}
 
-Estas etiquetas tienen 4 áreas de memoria:
+Estas etiquetas tienen definidas 4 áreas de memoria:
 
 \paragraph{Memoria reservada} (64 bits) donde se almacena las contraseñas de acceso y de bloqueo ambos de 32 bits, en una etiqueta nueva, ambas contraseñas son 00000000
 \paragraph{Memoria EPC} ($\ge$ 128 bits) es donde se encuentra el código de producto electrónico (EPC). Los primeros 16 bits son para la verificación de redundancia cíclica (CRC) los siguientes 16 bits son de control de protocolo (PCW), que indican algunas características como ser el tamaño y el uso del EPC, y los siguientes bits corresponden al EPC como tal (normalmente se tiene un EPC de 96 bits) Cabe mencionar que en una etiqueta nueva el EPC es reescribible. Opcionalmente en este espacio de memoria se implementa el Control de protocolo Extendido (XPC) que define el tipo de bloqueo que tiene la etiqueta.
@@ -173,7 +207,7 @@ Las antenas Clou/Hopeland implementan un protocolo para sus lectores denominado 
 \label{tab:hrp_frame}
 \end{table}
 
-La trama de datos  se envía en formato big-endian (byte más significativo primero) y consiste en: un byte de cabecera consistente en 0xAA, 2 bytes de palabra de control de protocolo (PCW) donde se tiene los siguientes bits:
+La trama de datos  se envía en formato big-endian (byte más significativo primero) y consiste en: un byte de cabecera consistente en \lstinline{0xAA}, 2 bytes de palabra de control de protocolo (PCW) donde se tiene los siguientes bits:
 
 \begin{table}[hbt]
 \caption{Palabra de Control}
@@ -197,7 +231,7 @@ El bit 13 indica si la comunicación se realiza por 485 que indica que existe y 
 
 El Tipo e Identificador de mensajes (denominados MT y MID) permite diferenciar los distintos \underline{Comandos} que se verán más adelante.
 
-La Longitud (LENGTH) de los datos es un número de 16 bits \footnote{actualmente el límite del protocolo es de 1024 bytes} que indica el tamaño del siguiente campo de Datos. Finalmente viene la Verificación de redundancia cíclica que es otro número de 16 bits, que adopta el algoritmo CRC-16/UMTS (polinomio 0x8005 con inicio 0x0000) sobre todo el paquete exceptuando la cabecera 0xAA.
+La Longitud (LENGTH) de los datos es un número de 16 bits \footnote{Actualmente el límite del protocolo es de 1024 bytes} que indica el tamaño del siguiente campo de Datos. Finalmente viene la Verificación de redundancia cíclica que es otro número de 16 bits, que adopta el algoritmo CRC-16/UMTS (polinomio 0x8005 con inicio 0x0000) sobre todo el paquete exceptuando la cabecera \lstinline{0xAA}.
 
 Por ejemplo el comando de reinicio de dispositivo corresponde al tipo MT=0x1 MID=0x0F y no tiene ningún parámetro por lo que genera una trama \lstinline{AA 01 0F 00 00 94 CF}. Este es el único comando que no genera una respuesta del lector, sino más bien reinicia el equipo cortando la comunicación.
 
@@ -259,7 +293,7 @@ Datos EPC & 0x0C  & var & dato del área EPC\\ \hline
 \newline Fuente: \emph{The HRP Protocol} \cite{Hopeland:2016}
 \end{table}
 
-Para una lectura simple el lector enviará solamente el EPC detectado y su PCW, al ser de tamaño variable el EPC se devuelve con dos bytes adicionales del tamaño del EPC. también se envía la antena que realizó la lectura y como primer parámetro opcional la intensidad de la señal de lectura \footnote{lo que permite en otras aplicaciones determinar la posición de un tag a partir de la intensidad de lectura en diversas antenas}.
+Para una lectura simple el lector enviará solamente el EPC detectado y su PCW, al ser de tamaño variable el EPC se devuelve con dos bytes adicionales del tamaño del EPC. también se envía la antena que realizó la lectura y como primer parámetro opcional la intensidad de la señal de lectura \footnote{Lo que permite en otras aplicaciones determinar la posición de un tag a partir de la intensidad de lectura en diversas antenas}.
 
 El Resultado nos indica si hubo algún problema al leer el resto de datos del tag. si es 0 los siguientes parámetros contienen la información leída si ésta hubiese sido solicitada previamente. al ser todos los campos de datos variables, se anteponen de 2 bytes del tamaño correspondiente.
 
@@ -295,98 +329,285 @@ La implementación se realizó en Python para facilitar las pruebas rápidas y a
 \label{fig:hrp_folder}
 \end{figure}
 
-se implementó un módulo llamado hrp, donde existen varios archivos:
+se implementó un módulo llamado \lstinline{hrp}, donde existen varios archivos:
 
 \paragraph{const.py} contiene las definiciones de constantes para el protocolo HRP, como ser los tipos de mensajes y los identificadores de comandos.
 
-\paragraph{exception.py} define las excepciones: HRPBaseError es la más básica para capturar cualquier error del módulo, HRPNetworkError indica si hubo un error en la comunicación del socket (pérdida de comunicación por ejemplo), HRPFrameError indica si hubo un error en la trama (respuesta incorrecta o no esperada) y finalmente HRPFrameTimeoutError indica que no se recibió la respuesta a un comando a tiempo.
+\paragraph{exception.py} define las excepciones de éste módulo: la excepción base, \pythoninline{HRPBaseError} es para capturar cualquier error del módulo, \pythoninline{HRPNetworkError} indica si hubo un error en la comunicación del socket (pérdida de comunicación por ejemplo), \pythoninline{HRPFrameError} indica si hubo un error en la trama (respuesta incorrecta o no esperada), finalmente \pythoninline{HRPFrameTimeoutError} indica que no se recibió la respuesta a un comando a tiempo.
+
+\begin{figure}[ht]
+\caption{hrp.exception}
+\centering
+\includegraphics[width=0.6\linewidth]{classes_HRP_exception.png}
+\newline Fuente: Elaboración propia
+\label{fig:hrp_exception}
+\end{figure}
 
 \paragraph {util.py} contiene algunas funciones de bitácora, la función \_ord() para compatibilidad entre python2 y python3, y la función crc16(data), para el cálculo de la verificación de redundancia \footnote{actualmente la implementación sólo genera esta verificación para enviar datos al lector, aún no implementa una verificación de la integridad de la trama, ya que al utilizar TCP no es muy necesario}.
 
 \paragraph{tag.py} define la clase Tag, y las clases para los parámetros de filtro o lectura de datos.
 
-\subsection*{Cocantena}
-
-Para las pruebas iniciales se recurrió a un receptor DVB-T convencional \footnote{https://www.amazon.com/RTL2832U-R820T2-DVB-T-Radio-Sensitivity/dp/B073FFLRYH} cuya antena para radio y TV no era apropiado para la recepción de señales ADS-B \footnote{DVB-T de 474 a 786MHz - Radio FM de 88 a 108 MHz} por lo que se contruyó una antena omnidireccional para 1090MHz, utilizando como plano de tierra una lata de aluminio.
-
-Para ello se determinó la longitud de la antena a partir de la frecuencia ADS-B y un cuarto de la longitud de onda,
-
-%\begin{equation}
-\begin{multline}
-f = 1090 [MHz] \\
-\lambda = \frac{c}{f} \\
-\lambda = \frac{299792458 [\frac{m}{s}]}{1090 \cdot 10^{6}[\frac{1}{s}]} \\
-\lambda = 0.275 [m] \\
-\therefore \frac{\lambda}{4} = 0.0688 [m] = 68.8 [mm]
-\label{eq:cuarta}
-\end{multline}
-%\end{equation}
-
-La antena resultante, fue probada inicialmente en la ventana del 4to piso del Edificio FNDR (Oficinas AGETIC)
-
-Donde tuvo un desempeño pobre (distancia máxima de detección 30km) debido, sobretodo, a la ubicación en medio de la ciudad y la obstrucción de la línea de vista por parte de edificios aledaños.
-
-Posteriormente se trasladó la antena a una ubicación más propicia en la ciudad del alto, a 3km del Aeropuerto Internacional de El Alto, obteniéndose un mejor desempeño (distancia máxima de detección 300km)
-
-\subsection*{Dump1090}
-
 \begin{figure}[ht]
-\caption{Captura de la pantalla dump1090}
+\caption{hrp.Tag}
 \centering
-\includegraphics[width=0.9\linewidth]{cc0.jpg}
+\includegraphics[width=0.35\linewidth]{classes_HRP_tag.png}
 \newline Fuente: Elaboración propia
-\label{fig:dump}
+\label{fig:hrp_tag}
 \end{figure}
 
-Para el procesamiento de la señal se optó por un desarrollo existente\footnote{versión original: https://github.com/antirez/dump1090 versión utlizada: https://github.com/mutability/dump1090}, basado en un decodificador de Modo S diseñado en base a librtlsdr. Esta aplicación permite levantar flujos de transmisión continua con la información decodificada en formatos SBS, AVR y modeSbeast, adicionalmente permite generar un sitio web local para el despliegue de un mapa con las aeronaves detectadas.
+Tiene como argumentos para la creación de un tag: la antena origen (\pythoninline{antenna}) y su RSSI (\pythoninline{rssi}), el EPC (\pythoninline{epc}), el PCW (\pythoninline{tag_pc}) y el resultado (\pythoninline{tag_result}) de la lectura, el resto de los argumentos son opcionales (\pythoninline{tid}, \pythoninline{udata}, \pythoninline{rdata}, \pythoninline{epc_data}, etc) y son poblados dependiendo el tipo de lectura que se realizó. Para la representación en texto (\pythoninline{str()}) dispone métodos de apoyo para cada tipo de argumento.  
 
-
-
-Impulsados por los resultados obtenidos, se gestionó la instalación de dos antenas adicionales en los aeropuertos de Viru Viru en Santa Cruz y Jorge Wilstermann en Cochabamba. Para ello se optó por un receptor más acorde al proyecto, utilizándose un receptor FlightAware y un filtro para 1090MHz. Si bien el receptor está basado en el mismo RTL2832U tiene una mejor ganancia y con el filtro permite eliminar interferencias de frecuencias cercanas. La antena también está mejor diseñada para 1090MHz por lo que el desempeño fue mucho mejor que el primer sistema, ya que en Santa Cruz, se tuvo un alcance de hasta 500 km\footnote{En cochabamba debido a la topografía del lugar se tuvo un alcance de 200km}.
+\paragraph{hrp.py} define la clase HRP que se encarga de realizar todas las comunicaciones correspondientes con el lector
 
 \begin{figure}[ht]
-\caption{Receptor Flightaware}
+\caption{hrp.HRP}
 \centering
-\includegraphics[width=0.9\linewidth]{flightaware.jpg}
-\newline Fuente: amazon.com
-\label{fig:flighaware}
+\includegraphics[width=0.6\linewidth]{classes_HRP_hrp.png}
+\newline Fuente: Elaboración propia
+\label{fig:hrp_hrp}
 \end{figure}
 
-Todos estos receptores fueron enlazados mediante una Red Privada Virtual para concentrar la información disponible.
+la inicialización de la clase tiene como argumentos: la (\pythoninline{ip}) o host del lector, (\pythoninline{port}) o el puerto de comunicación (por defecto 9090), (\pythoninline{ommit_ping}) para omitir realizar un ping antes de iniciar a comunicación \footnote{Se agregó esta opción para permitir la implementación en contenedores que no posean el comando ping, o en S.O. que bloqueen el uso de este comando}, (\pythoninline{timeout}) que indica el tiempo de espera al realizar la comunicación TCP (por defecto  espera 10s antes de emitir un error de \pythoninline{HRPFrameTimeoutError}.
+
+Para iniciar la comunicación con el lector se utiliza el método \pythoninline{connect()} el cual verifica la conexión ejecutando un ping, y luego crea el socket. A continuación, lee la información del lector \pythoninline{reader_info()} que puebla las propiedades de version, name y deltalive, con la versión del firmware, el nombre del lector y el tiempo de encendido del mismo. Luego obtiene la información de potencias \pythoninline{reader_ability()}, que puebla las propiedades de \pythoninline{min_power}, \pythoninline{max_power}, \pythoninline{antennas}, con las potencias mínimas y máximas soportadas, la máscara de antenas disponibles y retorna la lista de bandas y protocolos disponibles. Y luego obtiene la región actual con \pythoninline{band_region()} poblando a propiedad \pythoninline{region}, y los canales habilitados con \pythoninline{band_channels()} y poblando \pythoninline{channels}, lo cual permite verificar el uso correcto del ancho de banda y el espectro permitido en Bolivia. Finalmente lee la potencia actual de cada antena con el método \pythoninline{power()}.
+
+Existe dos métodos para realizar la lectura de etiquetas, \pythoninline{read_single_scan()} y \pythoninline{read_tag()}, ambos métodos tienen los mismos argumentos, (\pythoninline{antenna}) para indicar la máscara de antenas \footnote{Donde cada bit corresponde a que antena estará habilitada para el escaneo}, (\pythoninline{match}) es un argumento del tipo \pythoninline{MatchParameter()} para indicar el filtro a aplicar en la lectura \footnote{ MatchParameter tiene tres argumentos (area, start, content) donde área es MATCH\_EPC o MATCH\_TID para indicar el área a aplicar el filtro, start es el bit de inicio para la comparación y content es el contenido en cadena de bytes a comparar, como limitante de la implementación, solo se pueden comparar bytes enteros}, el parámetro (\pythoninline{tid}) es un argumento del tipo \pythoninline{TidReadParameter()} que indica el tipo y tamaño de lectura del TID, los parámetros (\pythoninline{udata}, \pythoninline{rdata}, \pythoninline{edata}) son parámetros tipo \pythoninline{TagAddress()} que indican el inicio y el tamaño en palabras para leer las áreas de memoria de usuario, Reservado y EPC respectivamente \footnote{Permitiendo este parámetro edata, leer los datos adicionales del área EPC, que se utiliza para leer la información de los Tags SOAT}, en caso de requerirse, se puede dar el parámetro de (\pythoninline{password}) para indicar la contraseña de acceso.
+
+La diferencia entre los métodos \pythoninline{read_single_scan()} y \pythoninline{read_tag()} es que \pythoninline{read_single_scan} realiza un solo barrido con la antena, y devuelve una lista \pythoninline{[Tag]} con todos las etiquetas que han sido detectadas, esta lista estará vacía si no se detectó ninguna etiqueta. el método \pythoninline{read_tag()} retorna un generador \footnote{Un tipo de función de Python, que permite devolver un resultado dinámicamente, para un consumo secuencial} que se utiliza para obtener interactívamente instancias de  \pythoninline{Tag} cuando son detectadas etiquetas, y \pythoninline{None} si no detecta ninguna  durante  \pythoninline{timeout}. Para finalizar el generador se debe colocar la propiedad  \pythoninline{end_read_tag} en  \pythoninline{True}\footnote{O generar una interrupción de teclado o finalizar el sistema}.
+
+Para finalizar la comunicación con el lector se utiliza el método \pythoninline{disconnect()}, el cual permite detener cualquier lectura en espera, y cierra el socket TCP.
+
+\subsection*{Ejemplos}
+
+Se ha preparado tres ejemplos simples, que se encuentran en la carpeta \lstinline{examples/}. El ejemplo básico, utiliza el generador \pythoninline{read_tag()}
+
+\begin{python}
+from hrp import HRP, const, exception
+
+try:
+    conn = HRP('192.168.1.116', 9090)
+    print ("Connectando")
+    conn.connect()
+    print ("presione Ctrl+C para terminar")
+
+    counter = 0
+    for tag in conn.read_tag(
+            antennas=const.ANTENNA_1|const.ANTENNA_2):
+        if tag is None:
+            print ("Time out, {}".format(counter))
+            counter += 1
+            if counter > 10:
+                conn.end_read_tag = True
+        else:
+            print (tag) #tag valido
+except Exception as e:
+    print ("Process terminate : {}".format(e))
+finally:
+    print ("Desconectando, bye!")
+    conn.disconnect()
+\end{python}
+
+\subsection*{Filtrado de B-SISA y SOAT}
+
+Luego de realizar pruebas se procedió a realizar lecturas esporádicas de vehículos en tránsito. posteriormente, la ANH confirmó la siguiente estructura del EPC de las etiquetas B-SISA
+
+\begin{table}[hbt]
+\caption{EPC del B-SISA}
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+Header    & 01 \\ 
+Filter    & 01 \\ 
+Partition & 98 \\ 
+Company   & C00100 \\ 
+Class     & XXXXXX \\ 
+Serial    & YYYYYY \\ 
+\bottomrule
+\end{tabular}
+\newline Fuente: \emph{ANH} 
+\end{table}
+
+la Clase corresponde al número de la etiqueta (codificado en mod10 para el código de barras) pero se puede notar que el inicio para el B-SISA siempre será 010198C00100.
+
+Una forma simple de leer sólamente etiquetas de B-SISA es:
+
+\begin{python}
+import codecs
+from hrp import HRP, const, exception
+from hrp.tag import TidReadParameter, TagAddress
+from hrp.tag import MatchParameter
+
+BSISA_START = codecs.decode("010198C00100", "hex")
+try:
+    conn = HRP('192.168.1.116', 9090)
+    print ("Connectando")
+    conn.connect()
+    print ("presione Ctrl+C para terminar")
+
+    counter = 0
+    for tag in conn.read_tag(
+            antennas=const.ANTENNA_1|const.ANTENNA_2,
+            match=MatchParameter(const.MATCH_EPC,
+                                     0x20, BSISA_START),
+            tid=TidReadParameter(0, 6)):
+        if tag is None:
+            print ("Time out, {}".format(counter))
+            counter += 1
+            if counter > 10:
+                conn.end_read_tag = True
+        else:
+            print (tag) #tag valido
+except Exception as e:
+    print ("Process terminate : {}".format(e))
+finally:
+    print ("Desconectando, bye!")
+    conn.disconnect()
+\end{python}
+
+En este caso, utilizamos el Filtro \pythoninline{MatchParameter} para indicar que sólo lea EPC empezando con la secuencia B-SISA, además de leer el TID de dicha etiqueta.
+
+Para el caso del SOAT, las pruebas monstraron que el EPC que devuelve es único y corresponde a 00000000 00000024 00000000, esta etiqueta es un caso particular, puesto que el EPC reportado es de 96 bits, pero los datos que corresponden al código de barras se encuentran también en el área de memoria EPC, por lo que debemos leer datos adicionales de esa área.
+
+\begin{python}
+import codecs
+from hrp import HRP, const, exception
+from hrp.tag import TidReadParameter, TagAddress
+from hrp.tag import MatchParameter
+
+SOAT_START = codecs.decode("0000000000000024",
+                               'hex')
+try:
+    conn = HRP('192.168.1.116', 9090)
+    print ("Connectando")
+    conn.connect()
+    print ("presione Ctrl+C para terminar")
+
+    counter = 0
+    for tag in conn.read_tag(
+            antennas=const.ANTENNA_1|const.ANTENNA_2,
+            match=MatchParameter(const.MATCH_EPC,
+                                     0x20, SOAT_START),
+            tid=TidReadParameter(0, 6),
+            edata=TagAddress(0x08, 2)):
+        if tag is None:
+            print ("Time out, {}".format(counter))
+            counter += 1
+            if counter > 10:
+                conn.end_read_tag = True
+        else:
+            print (tag) #tag valido
+except Exception as e:
+    print ("Process terminate : {}".format(e))
+finally:
+    print ("Desconectando, bye!")
+    conn.disconnect()
+\end{python}
+
+en este caso, el \pythoninline{Tag} leido tendrá un campo adicional \pythoninline{epc_data} con los 4 bytes que corresponden al código de barras de la etiqueta. al intentar leer campos adicionales del EPC\_data, impide la correcta lectura de B-SISA pudiéndose sólamente obtener el EPC del mismo\footnote{Ya que responde con un tag\_result=6 (Invalid data) y no devuelve el valor del TID}.
+
+Si bien ambos tags sólo permiten su autoidentificación (corroborar la lectura con el código de baras) ninguno aprovecha el espacio de memoria de datos, para almacenar datos como ser la placa u otros datos del vehículo, el SOAT tiene planificado implementar dicha funcionalidad. para ello sólo se requerirá leer los campos de datos del tag:
+
+\begin{python}
+...
+    for tag in conn.read_tag(
+            antennas=const.ANTENNA_1|const.ANTENNA_2,
+            match=MatchParameter(const.MATCH_EPC,
+                                     0x20, SOAT_START),
+            tid=TidReadParameter(0, 6),
+            udata=TagAddress(0x28, 44),
+            edata=TagAddress(0x08, 2)):
+...
+\end{python}
+
+El campo de datos del SOAT tendrá dos espacios, un aŕea codificada que contendrá la placa y otros datos del vehículo, y otra área con datos como color, modelo y año del vehículo.
+\begin{python}
+...
+            if tag.udata:
+                #quitar espacios
+                data = str(tag.udata).strip()
+                #dvidir espacio codificado
+                cdata = data.split('|')
+                pdata = base64.b64decode(cdata[0])
+                #placa vehiculo
+                placa = pdata.split('>')[0]
+...
+\end{python}
+
+Si bien el despliegue de dichos campos aún no está en el parque automotor\footnote{Sólo en las etiquetas de prueba provistas por Quipus}.
+
+\subsection*{Lectura de B-SISA y SOAT}
+
+Para leer ambos tipos de etiquetas al mismo tiempo, se optó por una lectura más secuencial, leyendo cualquiert tag, y forzando una segunda lectura en caso de encontrar un SOAT.
+
+\begin{python}
+import codecs
+from hrp import HRP, const, exception
+from hrp.tag import TidReadParameter, TagAddress
+from hrp.tag import MatchParameter
+
+BSISA_START = codecs.decode("010198C00100", "hex")
+SOAT_START = codecs.decode("0000000000000024",
+                               'hex')
+try:
+    conn = HRP('192.168.1.116', 9090)
+    print ("Connectando")
+    conn.connect()
+    print ("presione Ctrl+C para terminar")
+
+    counter = 0
+    while True:
+        tags = conn.read_single_scan(
+            antennas=const.ANTENNA_1|const.ANTENNA_2,
+            tid=TidReadParameter(0, 6)):
+        if not tags:
+            print ("Time out, {}".format(counter))
+            continue
+        for tag in tags:
+            if tag.epc[:len(SOAT_START)] == SOAT_START:
+                soat = conn.read_single_scan(
+                    antennas=const.ANTENNA_1 |
+                               const.ANTENNA_2,
+                    match=MatchParameter(
+                                   const.MATCH_TID,
+                                   0x0, tag.tid),
+                    tid=TidReadParameter(0, 6),
+                    edata=TagAddress(0x08, 2))
+                if soat and soat[0].tag_result == 0:
+                    tag = soat[0] # remplazar
+            print (tag) #tag valido
+except Exception as e:
+    print ("Process terminate : {}".format(e))
+finally:
+    print ("Desconectando, bye!")
+    conn.disconnect()
+\end{python}
+
+\subsection*{Pruebas de Campo}
+
+para facilitar las pruebas de campo se desarrolló una aplicación web mediante FLASK y SOCKET.IO generando una pequeña interfaz web y generando un websocket cada vez que se detecta un tag válido, mostrándose en tiempo real en la interfaz web. También se aprovechó para almacenar los datos registrados en una base de datos PostgresQL
 
 \begin{figure}[ht]
-\caption{Instalación en Santa Cruz}
+\caption{Captura Tags}
 \centering
-\includegraphics[width=0.8\linewidth]{antena_scz.jpg}
-\newline Fuente: Aeropuerto Viru Viru
-\label{fig:antena_vvi}
-\end{figure}
-
-\subsection*{VirtualRadar}
-
-Para combinar la información de los receptores desplegados, se recurrió a otro desarrollo existente, el Servidor Virtual Radar (VRS), una aplicación de codigo abierto en dotNET con capacidad de combinar la información de varios receptores que tengan flujos de red en formato SBS, AVR o modeBeast (aprovechando la información extra de este último formato). Al tener una base de datos propia para la información de las aeronaves, es posible agregar o actualizar la información de registro, modelo de avión y operador, apartir del identificador OACI.
-
-\begin{figure}[ht]
-\caption{Pantalla VRS}
-\centering
-\includegraphics[width=0.9\linewidth]{vrs.png}
+\includegraphics[width=\linewidth]{captura_lector}
 \newline Fuente: Elaboración Propia
-\label{fig:vrs}
+\label{fig:captura_tag}
 \end{figure}
 
-Por ejemplo en la Figura \ref{fig:vrs} se puede ver la información de una aeronave en particular (y la información obtenida de su base de datos local), junto con su ruta sobre el mapa \footnote{Se puede observar el paso que da este vuelo internacional cerca del aeropuerto del Alto, y de Viru Viru, en vez de seguir una ruta lineal.}. También se puede observar el área cubierta por cada antena, dando bastante énfasis en el área cubierta por la antena de Viru Viru.
-
-Si bien el VRS permite generar reportes sobre los vuelos capturados, tiene la pequeña deficiencia de no almacenar la información de la ruta exacta de un vuelo ya almacenado, dando priorridad únicamente a las posiciones de inicio y final de captura, por ejemplo, en la figura \ref{fig:reporte_vrs} se observa solo los puntos de principio y final de captura de datos de un vuelo entre Lima y Sao Paulo, correspondiente a los límites del área de cobertura de nuestras antenas.
-
 \begin{figure}[ht]
-\caption{Reporte de un vuelo en VRS}
+\caption{Captura Tags: Detalle}
 \centering
-\includegraphics[width=0.9\linewidth]{reporte_vrs.png}
+\includegraphics[width=\linewidth]{captura_detalles}
 \newline Fuente: Elaboración Propia
-\label{fig:reporte_vrs}
+\label{fig:captura_detalles}
 \end{figure}
 
 \section{Resultados}
+
+Con el sistema funcionando, se realizó un par de pruebas: La primera en la calle Ecuador esquina Pedro Salazar, registrando los vehículos de subida y comparando con una grabación de los vehículos para ver la ubicación de las etiquetas.
+
+de 102 vehículos que circularon en un lapso de 15 minutos, sólo se indentificó 57 lecturas de SOAT (56\%) y 72 lecturas de B-SISA (70\%)
+
 
 Para el análisis de datos, se optó por alimentar la información de las antenas a un red ADS-B con mayores prestaciones. obtándose por la red OpenSkyNetwork, que ofrece herramientas estadísticas sobre el rendimiento de los receptores.
 
