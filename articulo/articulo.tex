@@ -305,6 +305,23 @@ se implementó un módulo llamado hrp, donde existen varios archivos:
 
 \paragraph{tag.py} define la clase Tag, y las clases para los parámetros de filtro o lectura de datos.
 
+Tiene como argumentos para la creación de un tag: la antena origen (antenna) y su RSSI (rssi), el EPC (epc), el PCW (tag_pc) y el resultado (tag_result) de la lectura, el resto de los argumentos son opcionales (tid, udata, rdata, epc_data, etc) y son poblados dependiendo el tipo de lectura que se realizó. Para la representación en texto (str) dispone métodos de apoyo para cada tipo de argumento.  
+
+\paragraph{hrp.py} define la clase HRP que se encarga de realizar todas las comunicaciones correspondientes con el lector
+
+la inicialización de la clase tiene como argumentos: la (ip) o host del lector, (port) o el puerto de comunicación (por defecto 9090), (ommit_ping) para omitir realizar un ping antes de iniciar a comunicación \footnote{Se agregó esta opción para permitir la implementación en contenedores que no posean el comando ping, o en S.O. que bloqueen el uso de este comando}, (timeout) que indica el tiempo de espera al realizar la comunicación TCP (por defecto  espera 10s antes de emitir un error de HRPFrameTimeoutError.
+
+Para iniciar la comunicación con el lector se utiliza el método connect() el cual verifica la conexión ejecutando un ping, y luego crea el socket. A continuación, lee la información del lector reader_info() que puebla las propiedades de version, name y deltalive, con la versión del firmware, el nombre del lector y el tiempo de encendido del mismo. Luego obtiene la información de potencias reader_ability(), que puebla las propiedades de min_power, max_power, antennas, con las potencias mínimas y máximas soportadas, la máscara de antenas disponibles y retorna la lista de bandas y protocolos disponibles. Y luego obtiene la región actual con band_region() poblando a propiedad region, y los canales habilitados con band_channels() y poblando channels,  lo cual permite verificar el uso correcto del ancho de banda y el espectro permitido en Bolivia. Finalmente lee la potencia actual de cada antena con el método power().
+
+Existe dos métodos para realizar la lectura de etiquetas, read_single_scan() y read_tag(), ambos métodos tienen los mismos argumentos, (antenna) para indicar la máscara de antenas, (match) es un argumento de tipo MatchParameter() para indicar el filtro 
+
+Para finalizar la comunicación con el lector se utiliza el método disconnect(), el cual permite detener cualquier lectura en espera, y cierra el socket TCP.
+
+
+
+ 
+
+
 \subsection*{Cocantena}
 
 Para las pruebas iniciales se recurrió a un receptor DVB-T convencional \footnote{https://www.amazon.com/RTL2832U-R820T2-DVB-T-Radio-Sensitivity/dp/B073FFLRYH} cuya antena para radio y TV no era apropiado para la recepción de señales ADS-B \footnote{DVB-T de 474 a 786MHz - Radio FM de 88 a 108 MHz} por lo que se contruyó una antena omnidireccional para 1090MHz, utilizando como plano de tierra una lata de aluminio.
