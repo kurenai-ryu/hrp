@@ -119,7 +119,7 @@ showstringspaces=false            %
 %----------------------------------------------------------------------------------------
 
 \Abstract{
-resumen....
+La identificación de etiquetas por Radio-Frecuencia, se utiliza actualmente en Bolivia en dos sistemas importantes, el B-SISA de la ANH, y el SOAT, administrado actualmente por Univida, usándose en ambos casos etiquetas que trabajan en UHF bajo el estándar ISO18000-6C EPC Class 1 Gen 2 y pudiéndose utilizar antenas que trabajen entre 915 a 930MHz. En este caso se estudió el protocolo HRP para antenas Clou/Hopeland.
 }
 
 %----------------------------------------------------------------------------------------
@@ -147,7 +147,7 @@ resumen....
 \section*{Introdución} % The \section*{} command stops section numbering
 \addcontentsline{toc}{section}{Introdución} % Adds this section to the table of contents
 
-La tecnología RFID utiliza campos electromagnéticos para identificar y rastrear etiquetas (tags) adheridas a objetos, Estas etiquetas  contienen un circuito electrónico y una antena por la cual tanto se energiza como se comunica con el circuito permitiendo el intercambio de información mediante ondas electromagnéticas \footnote{Existen también etiquetas activas que poseen alimentación propia mediante una batería, permitiendo mayor alcance que una etiqueta pasiva}.
+La tecnología RFID utiliza campos electromagnéticos para identificar y rastrear etiquetas (tags) adheridas a objetos, Estas etiquetas contienen un circuito electrónico y una antena por la cual se energiza y se comunica permitiendo el intercambio de información de forma inalámbrica \footnote{Existen también etiquetas activas que poseen alimentación propia mediante una batería, permitiendo mayor alcance que una etiqueta pasiva}.
 
 Existen diversos estándares y frecuencias para esta tecnología, dependiendo del uso y la distancia que se requiere, entre ellos algunos son:
 \begin{itemize}
@@ -167,6 +167,24 @@ Desarrollar un módulo de comunicación con antenas RFID Clou/Hopeland y probar 
 
 La ANH como institución responsable de regular, controlar, supervisar y fiscalizar las actividades relacionadas con hidrocarburos \footnote{Constitución política del Estado, Artículo 365} tiene como obligación la implementación de un sistema de Información de Comercialización de combustibles, a través de (…) el colocado de etiquetas de auto-identificación en todo vehículo automotor que circule en territorio nacional. \footnote{Ley 264, Ley del Sistema Nacional de Seguridad ciudadana “Para una vida segura”, Artículo 49} el cual se fue aprobado y reglamentado como Sistema de Información y Comercialización de Combustibles (B-SISA) el 2015 \footnote{RA-ANH-DJ 0102/2015 y RAN-ANH-UN 0012/2015}.
 
+\begin{figure}[ht]
+\caption{Etiqueta B-SISA}
+\centering
+\includegraphics[width=0.5\linewidth]{nuevo_bsisa.jpg}
+\newline Fuente: ANH
+\label{fig:nuevo_bsisa}
+\end{figure}
+
+El Decreto Supremo N°2920 de 28 de septiembre de 2016, establece que el Seguro Obligatorio de Accidentes de Tránsito - SOAT será administrado y comercializado por la Entidad Pública de Seguros, y por la Resolución Administrativa  APS/DJ/DS/N° 1517-2016 de 17 de octubre de 2016, se habilitó a la Compañía Seguros y Reaseguros Personales Univida S.A. en su condición de Entidad Pública de Seguros, para que asuma la administración y comercialización del SOAT desde la Gestión 2017. 
+
+\begin{figure}[ht]
+\caption{Etiqueta SOAT}
+\centering
+\includegraphics[width=0.6\linewidth]{roseta_soat.jpg}
+\newline Fuente: APS
+\label{fig:roseta_soat}
+\end{figure}
+
 \section{Justificación}
 
 Si bien existen servicios externos para la ubicación y rastreo de vuelos comerciales \footnote{https://www.makeuseof.com/tag/6-sites-view-maps-airline-flight-paths-bonus-mobile-apps/}, éstos son controlados y limitados tanto en información como en consumo de datos, donde una empresa privada puede solicitar que sus vuelos no sean públicos, asi como limitar el tiempo de los datos visibles. Es interesante notar que varios de estos servicios se basan en receptores ADS-B instalados por sus propios usuarios (a cambio de mayores prestaciones, como flujo de datos, etc), y como dato curioso, existen muy pocos receptores en Bolivia, por lo que se limita aún más la cantidad de información disponible para nuestro territorio.
@@ -178,7 +196,7 @@ Algunos de los conceptos clave para entender esta tecnología y poder aplicarla 
 
 \subsection*{Identificación en UHF (860 a 960MHz)}
 
-Estas etiquetas se definieron originalmente por EPCGlobal como el protocolo de identificación por radiofrecuencia de Código de Producto Electrónico (EPC) clase 1, 2da generación, para trabajar en 860 a 960MHz \footnote{Banda ISM según la UIT, pero restringida parcialmente en otros paises como Bolívia} este protocolo fue aprobado como parte de la ISO18000-6 para manejo de items por radiofrecuencia.
+Estas etiquetas se definieron originalmente por EPCGlobal como el protocolo de identificación por radiofrecuencia de Código de Producto Electrónico (EPC) clase 1, 2da generación \cite{EPCGlobal:2008}, para trabajar en 860 a 960MHz \footnote{Banda ISM según la UIT, pero restringida parcialmente en otros paises como Bolívia, donde sólo la banda de 915 a 930 se puede utilizar en aplicaciones de redes privadas \cite{Telecomunicaciones:2012} BOL19} este protocolo fue aprobado como parte de la ISO18000-6 para manejo de items por radiofrecuencia.
 
 En sí el protocolo define un sistema compuesto por interrogadores (llamados también lectores – \emph{Readers}) y las etiquetas o \emph{Tags}. Un lector transmite información a la etiqueta al modular señal de Radio Frecuencia entre 860 a 960MHz. La etiqueta recibe información y energía de dicha señal modulada, lo que indica que este sistema utiliza una etiqueta pasiva. Para recibir información de la etiqueta, el lector envía una señal de onda continua (CW), donde la etiqueta responde modulando el coeficiente de reflexión de su antena, retro-dispersando información al lector.  La comunicación se realiza en semidúplex con inicio en el lector, es decir que se alterna la comunicación entre el lector y las etiquetas, siempre iniciado por el lector.
 
@@ -305,7 +323,7 @@ El comando de parada no tiene argumento y corresponde a MT=0x2 MID=0xFF \lstinli
 
 \section{Metodología}
 
-La implementación se realizó en Python para facilitar las pruebas rápidas y aprovechar la experiencia en manejo de sockets.
+La implementación se realizó en Python para facilitar las pruebas rápidas y aprovechar la experiencia en manejo de sockets\cite{Jennings:2018}.
 
 \begin{figure}[ht]
 \caption{Estructura del módulo}
@@ -373,7 +391,7 @@ Para iniciar la comunicación con el lector se utiliza el método \pythoninline{
 
 Existe dos métodos para realizar la lectura de etiquetas, \pythoninline{read_single_scan()} y \pythoninline{read_tag()}, ambos métodos tienen los mismos argumentos, (\pythoninline{antenna}) para indicar la máscara de antenas \footnote{Donde cada bit corresponde a que antena estará habilitada para el escaneo}, (\pythoninline{match}) es un argumento del tipo \pythoninline{MatchParameter()} para indicar el filtro a aplicar en la lectura \footnote{ MatchParameter tiene tres argumentos (area, start, content) donde área es MATCH\_EPC o MATCH\_TID para indicar el área a aplicar el filtro, start es el bit de inicio para la comparación y content es el contenido en cadena de bytes a comparar, como limitante de la implementación, solo se pueden comparar bytes enteros}, el parámetro (\pythoninline{tid}) es un argumento del tipo \pythoninline{TidReadParameter()} que indica el tipo y tamaño de lectura del TID, los parámetros (\pythoninline{udata}, \pythoninline{rdata}, \pythoninline{edata}) son parámetros tipo \pythoninline{TagAddress()} que indican el inicio y el tamaño en palabras para leer las áreas de memoria de usuario, Reservado y EPC respectivamente \footnote{Permitiendo este parámetro edata, leer los datos adicionales del área EPC, que se utiliza para leer la información de los Tags SOAT}, en caso de requerirse, se puede dar el parámetro de (\pythoninline{password}) para indicar la contraseña de acceso.
 
-La diferencia entre los métodos \pythoninline{read_single_scan()} y \pythoninline{read_tag()} es que \pythoninline{read_single_scan} realiza un solo barrido con la antena, y devuelve una lista \pythoninline{[Tag]} con todos las etiquetas que han sido detectadas, esta lista estará vacía si no se detectó ninguna etiqueta. el método \pythoninline{read_tag()} retorna un generador \footnote{Un tipo de función de Python, que permite devolver un resultado dinámicamente, para un consumo secuencial} que se utiliza para obtener interactívamente instancias de  \pythoninline{Tag} cuando son detectadas etiquetas, y \pythoninline{None} si no detecta ninguna  durante  \pythoninline{timeout}. Para finalizar el generador se debe colocar la propiedad  \pythoninline{end_read_tag} en  \pythoninline{True}\footnote{O generar una interrupción de teclado o finalizar el sistema}.
+La diferencia entre los métodos \pythoninline{read_single_scan()} y \pythoninline{read_tag()} es que \pythoninline{read_single_scan} realiza un solo barrido con la antena, y devuelve una lista \pythoninline{[Tag]} con todos las etiquetas que han sido detectadas, esta lista estará vacía si no se detectó ninguna etiqueta. el método \pythoninline{read_tag()} retorna un generador \footnote{Un tipo de función de Python, que permite devolver un resultado dinámicamente, para un consumo secuencial \cite{Raicea:2017}} que se utiliza para obtener interactívamente instancias de  \pythoninline{Tag} cuando son detectadas etiquetas, y \pythoninline{None} si no detecta ninguna  durante  \pythoninline{timeout}. Para finalizar el generador se debe colocar la propiedad  \pythoninline{end_read_tag} en  \pythoninline{True}\footnote{O generar una interrupción de teclado o finalizar el sistema}.
 
 Para finalizar la comunicación con el lector se utiliza el método \pythoninline{disconnect()}, el cual permite detener cualquier lectura en espera, y cierra el socket TCP.
 
@@ -604,105 +622,14 @@ para facilitar las pruebas de campo se desarrolló una aplicación web mediante 
 
 \section{Resultados}
 
-Con el sistema funcionando, se realizó un par de pruebas: La primera en la calle Ecuador esquina Pedro Salazar, registrando los vehículos de subida y comparando con una grabación de los vehículos para ver la ubicación de las etiquetas.
+Con el sistema funcionando, se realizó una prueba en la calle Ecuador esquina Pedro Salazar, registrando los vehículos de subida y comparando con una grabación de los vehículos para ver la ubicación de las etiquetas.
 
-de 102 vehículos que circularon en un lapso de 15 minutos, sólo se indentificó 57 lecturas de SOAT (56\%) y 72 lecturas de B-SISA (70\%)
-
-
-Para el análisis de datos, se optó por alimentar la información de las antenas a un red ADS-B con mayores prestaciones. obtándose por la red OpenSkyNetwork, que ofrece herramientas estadísticas sobre el rendimiento de los receptores.
-
-\subsection*{El Alto}
-
-El primer receptor instalado, tiene un buen desempeño\footnote{https://opensky-network.org/receiver-profile?s=-1408236454} con un rango entre 180 a 300 km cubriendo un área de 35.000 a 62.000 km2, con un promedio de 550 mensajes procesados por dia (llegando a 44 mensajes por segundo) y capturando hasta 50 aeronaves por día.
-
-\begin{figure}[ht]
-\caption{El Alto: Rango de 1 día}
-\centering
-\includegraphics[width=0.8\linewidth]{lpb_range.png}
-\newline Fuente: OpenSky Network
-\label{fig:lpb_range}
-\end{figure}
-
-\begin{figure}[ht]
-\caption{El Alto: Disponibilidad}
-\centering
-\includegraphics[width=0.8\linewidth]{lpb_disp.png}
-\newline Fuente: OpenSky Network
-\label{fig:lpb_disp}
-\end{figure}
-
-\begin{figure}[ht]
-\caption{El Alto: Promedio de mensajes}
-\centering
-\includegraphics[width=0.8\linewidth]{lpb_mes.png}
-\newline Fuente: OpenSky Network
-\label{fig:lpb_mes}
-\end{figure}
-
-\subsection*{Cochabamba}
-
-Pese a ser un mejor receptor, esta antena tuvo un rendimiento medio\footnote{https://opensky-network.org/receiver-profile?s=-1408236489}, recalcando de esta forma la importancia de la ubicación y la línea de vista \footnote{Recordemos que cochabamba es un valle rodeado de cerranías}. Tiene un rango entre 150 a 220km, cubriendo un área entre 25.000 a 40.000 km2, con 450.000 mensajes procesados por día (llegando a 32 mensajes por segundo) y capturando hasta 60 aeronaves por día.
-
-\begin{figure}[ht]
-\caption{Cochabamba: Rango de 1 día}
-\centering
-\includegraphics[width=0.8\linewidth]{cbb_range.png}
-\newline Fuente: OpenSky Network
-\label{fig:cbb_range}
-\end{figure}
-
-\begin{figure}[ht]
-\caption{Cochabamba: Disponibilidad}
-\centering
-\includegraphics[width=0.8\linewidth]{cbb_disp.png}
-\newline Fuente: OpenSky Network
-\label{fig:cbb_disp}
-\end{figure}
-
-\begin{figure}[ht]
-\caption{Cochabamba: Promedio de mensajes}
-\centering
-\includegraphics[width=0.8\linewidth]{cbb_mes.png}
-\newline Fuente: OpenSky Network
-\label{fig:cbb_mes}
-\end{figure}
-
-
-\subsection*{Santa Cruz}
-
-Esta fue la antena con el mejor rendimiento\footnote{https://opensky-network.org/receiver-profile?s=-1408236530}, con un promedio de 500km de rango direccional, cubriendo un área entre 200.000 a 350.000 km2, con 1.250.000 mensajes procesados por día (llegando a 32 mensajes por segundo) y capturando hasta 100 aeronaves por día.
-
-\begin{figure}[ht]
-\caption{Viru Viru: Rango de 1 día}
-\centering
-\includegraphics[width=0.8\linewidth]{vvi_range.png}
-\newline Fuente: OpenSky Network
-\label{fig:vvi_range}
-\end{figure}
-
-\begin{figure}[ht]
-\caption{Viru Viru: Disponibilidad}
-\centering
-\includegraphics[width=0.8\linewidth]{vvi_disp.png}
-\newline Fuente: OpenSky Network
-\label{fig:vvi_disp}
-\end{figure}
-
-\begin{figure}[ht]
-\caption{Viru Viru: Promedio de mensajes}
-\centering
-\includegraphics[width=0.8\linewidth]{vvi_mes.png}
-\newline Fuente: OpenSky Network
-\label{fig:vvi_mes}
-\end{figure}
+De 102 vehículos que circularon en un lapso de 15 minutos, sólo se indentificó 57 lecturas de SOAT (56\%) y 72 lecturas de B-SISA (70\%) pero tras un análisis del video tomado, se identificó sólamente 88 vehículos con el SOAT visible e incluso 67 con el SOAT instalado en una posición óptima, en cuyos casos, el procentaje sube a 65\% y 91\% respectivamente. para el B-SISA, los vehículos con etiquetas visibles fueron 85 y 51 con el B-SISA bien ubicado, alcanzándose porcentajes de éxito de 82\% y 96\%. combinando ambos tipos de etiquetas, se tiene que: al intentar leer ambos SOAT y B-SISA al mismo tiempo, solamente el 37\% de los 102 se pudo leer ambas etiquetas, pero si éstas estaban ubicadas en una posición óptima (debajo del retrovisor en medio del parabrisas) el alcance es de 85\%. En cambio si se intenta leer al menos una de las dos etiquetas, se percibe al menos un 89\% de los 102 vehiculos, y si las etiquetas están en posición óptima, un 100\% de detección.
 
 \section{Conclusiones}
 
-Tan sólo colocando 3 antenas receptoras ADS-B se ha logrado cubrir un 50\% del territorio boliviano. Aunque se pudo evidenciar que la mayoría de las aeronaves nacionales (principalmente de la línea amaszonas) solo envían mensajes en Modo-S, impidiendo obtener su ubicación con el arreglo actual. Para ello, se puede utilizar una técnica llamada multilateración MLAT, que con 3 o más receptores ADS-B separados espacialmente en 5km o más \footnote{Es decir en un arreglo cuadrático o circular, evitando formar una sola línea de sensores}.
+Luego de realizar algunas otras pruebas con resultados similares, se puede concluir que esta antena con este protocolo, puede ser utilizado para leer las etiquetas del B-SISA y/o el SOAT (incluso ambas al mismo tiempo), pero que las etiquetas no se encuentran instaladas de forma óptima en el parque automtor, ya que en varios casos se encuentran en los extremos del parabrisas e incluso en algunos casos los vehículos carecen de una o ambas etiquetas.
 
-También se evidenció pequeñas falencias en los transpondedores de algunas aeronaves nacionales, que tienen bastante interferencia (posiblemente por falta de calibración en el mismo transpondendor) e incluso varias aeronaves que tiene un arrastre de la señal GPS por falta de calibración en sus antenas.
-
-Si se implementara un sistema de recepción ADS-B que no entre en conflicto con el SIVICEA (o incluso que pueda trabajar en conjunto para corroborar - certificar la información) se debería ver de instalar más antenas en nuestro territorio.
 
 %----------------------------------------------------------------------------------------
 %	REFERENCE LIST
