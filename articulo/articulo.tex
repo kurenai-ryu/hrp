@@ -187,7 +187,7 @@ El Decreto Supremo N°2920 de 28 de septiembre de 2016, establece que el Seguro 
 
 \section{Justificación}
 
-Si bien existen servicios externos para la ubicación y rastreo de vuelos comerciales \footnote{https://www.makeuseof.com/tag/6-sites-view-maps-airline-flight-paths-bonus-mobile-apps/}, éstos son controlados y limitados tanto en información como en consumo de datos, donde una empresa privada puede solicitar que sus vuelos no sean públicos, asi como limitar el tiempo de los datos visibles. Es interesante notar que varios de estos servicios se basan en receptores ADS-B instalados por sus propios usuarios (a cambio de mayores prestaciones, como flujo de datos, etc), y como dato curioso, existen muy pocos receptores en Bolivia, por lo que se limita aún más la cantidad de información disponible para nuestro territorio.
+Actualmente existen antenas RFID UHF que pueden leer la información de identificación de un tag (EPC y TID) como ser los FX7500 o FX9600 de Zebra(Motorola) mediante el protocolo LLRP,erp no tiene una solución integral, es decir, que se requiere un controlador y aparte las antenas de comunicación. Otras soluciones Integrales como el ZK-RFID-101 tiene un controlador limitado, que sólo permite leer 4 bytes del EPC. Clou/Hopeland tiene antenas integradas con capacidad de leer todo el tag y tiene un protocolo documentado denominado HRP que se puede implementar en cualquier lenguaje de programación \footnote{Ya existen librerías para .NET y JAVA del propio distribuidor. pero con una implementación limitada que dificulta la lectura simultanea del SOAT y B-SISA}
 
 
 \section{Marco teórico}
