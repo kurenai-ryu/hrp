@@ -32,7 +32,7 @@ from hrp.exception import *
 
 try:
     conn = HRP(ip='192.168.1.116', port=9090, ommit_ping=False, timeout=10)
-    conn.setLogLevelDebug()
+    conn.set_log_level_debug()
     print ("Connecting")
     conn.connect()
     filter_time, RSSI_threshold = conn.tag_filter()
@@ -40,7 +40,7 @@ try:
     #conn.read_tag(tid=TidReadParameter(0, 10)) #test
     #conn.read_tag(edata=TagAddress(0x02, 6)) #test
     counter = 0
-    for tag in conn.read_tag(antenna=0x01): #test generator
+    for tag in conn.read_tag(antennas=1): #test generator
         if tag is None:
             print ("Time out, {}".format(counter))
             counter += 1
